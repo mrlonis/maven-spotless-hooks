@@ -57,6 +57,19 @@ handleMergeConflicts() {
       echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
       git diff --name-only
 
+      echo "[git pre-commit hook - $conflictedFile] - git status"
+      git status --porcelain
+      git status
+      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
+      git diff --name-only
+      echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
+      git add "$conflictedFile"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
+      git status --porcelain
+      git status
+      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
+      git diff --name-only
+
       echo "[git pre-commit hook - $conflictedFile] - Running spotless:apply"
       if command -v mvn >/dev/null 2>&1; then
         mvn clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
