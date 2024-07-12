@@ -8,6 +8,8 @@
     - [Automatically Update Submodule With Maven](#automatically-update-submodule-with-maven)
       - [Executed Command](#executed-command)
     - [Install Git Hooks](#install-git-hooks)
+  - [Troubleshooting](#troubleshooting)
+    - [How to fix "git-sh-setup: file not found" in windows](#how-to-fix-git-sh-setup-file-not-found-in-windows)
 
 ## Usage
 
@@ -116,3 +118,9 @@ We then need to install the git hooks. This can be done by adding the following 
   ...
 </project>
 ```
+
+## Troubleshooting
+
+### How to fix "git-sh-setup: file not found" in windows
+
+[https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows](https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows)
