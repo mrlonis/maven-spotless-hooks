@@ -36,15 +36,28 @@ handleMergeConflicts() {
   if [ -n "$conflictedFiles" ]; then
     for conflictedFile in $conflictedFiles; do
       echo "[git pre-commit hook] - Resolving conflict for $conflictedFile"
-      git checkout --theirs "$(pwd)/$conflictedFile"
-      git restore --staged "$(pwd)/$conflictedFile"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
+      git status
 
+      echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
+      git checkout --theirs "$(pwd)/$conflictedFile"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
+      git status
+      echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
+      git restore --staged "$(pwd)/$conflictedFile"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
+      git status
+
+      echo "[git pre-commit hook - $conflictedFile] - Running spotless:apply"
       if command -v mvn >/dev/null 2>&1; then
         mvn clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
       else
         ./mvnw clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
       fi
 
+      echo "[git pre-commit hook - $conflictedFile] - git status"
+      git status
+      echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
       git add "$conflictedFile"
     done
   fi
