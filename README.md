@@ -14,7 +14,7 @@
 This repo should be added to another repo as a submodule
 
 ```sh
-git submodule add --name .hooks -b main https://github.com/mrlonis/maven-spotless-hooks.git
+git submodule add -b main https://github.com/mrlonis/maven-spotless-hooks.git .hooks/
 git commit -m "Adding maven-spotless-hooks"
 ```
 
