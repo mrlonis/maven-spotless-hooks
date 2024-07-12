@@ -49,24 +49,24 @@ handleMergeConflicts() {
       echo "[git pre-commit hook] - Resolving conflict for $conflictedFile"
       logGitInfo
 
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
       fi
       git checkout --theirs "$(pwd)/$conflictedFile"
       logGitInfo
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
       fi
       git restore --staged "$(pwd)/$conflictedFile"
       logGitInfo
 
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
       fi
       git add "$conflictedFile"
       logGitInfo
 
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Running spotless:apply"
       fi
       if command -v mvn >/dev/null 2>&1; then
@@ -76,7 +76,7 @@ handleMergeConflicts() {
       fi
 
       logGitInfo
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
       fi
       logGitInfo
