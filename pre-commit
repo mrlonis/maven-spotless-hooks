@@ -1,7 +1,6 @@
 #!/bin/sh
 handleMergeCommit() {
-  if [ -f .git/MERGE_HEAD ]
-  then
+  if [ -f .git/MERGE_HEAD ]; then
     echo "[git pre-commit hook] - Merge in progress. Exiting pre-commit hook."
     exit 0
   fi
@@ -25,10 +24,10 @@ stageUnStagedChangesInStagedFiles() {
 
 spotlessApply() {
   # We pass in ratchetFrom here to ensure that we only format the files that have changed since the last commit
-  if command -v mvn >/dev/null 2>&1; then    # Check if mvn command exists to support GitHub Desktop on Windows
-    mvn spotless:apply -DratchetFrom=HEAD -q # Requires Maven to be installed
+  if command -v mvn >/dev/null 2>&1; then          # Check if mvn command exists to support GitHub Desktop on Windows
+    mvn clean spotless:apply -DratchetFrom=HEAD -q # Requires Maven to be installed
   else
-    ./mvnw spotless:apply -DratchetFrom=HEAD -q # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
+    ./mvnw clean spotless:apply -DratchetFrom=HEAD -q # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
   fi
 }
 
@@ -41,9 +40,9 @@ handleMergeConflicts() {
       git restore --staged "$(pwd)/$conflictedFile"
 
       if command -v mvn >/dev/null 2>&1; then
-        mvn spotless:apply -DspotlessFiles=".*$conflictedFile" -q
+        mvn clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
       else
-        ./mvnw spotless:apply -DspotlessFiles=".*$conflictedFile" -q
+        ./mvnw clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
       fi
 
       git add "$conflictedFile"
