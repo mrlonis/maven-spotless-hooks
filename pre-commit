@@ -38,19 +38,22 @@ handleMergeConflicts() {
       echo "[git pre-commit hook] - Resolving conflict for $conflictedFile"
       echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
       git status --porcelain
+      git status
       echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
       git diff --name-only
 
       echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
       git checkout --theirs "$(pwd)/$conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
       git status --porcelain
+      git status
       echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
       git diff --name-only
       echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
       git restore --staged "$(pwd)/$conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
       git status --porcelain
+      git status
       echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
       git diff --name-only
 
@@ -61,14 +64,16 @@ handleMergeConflicts() {
         ./mvnw clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
       fi
 
-      echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
       git status --porcelain
+      git status
       echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
       git diff --name-only
       echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
       git add "$conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
+      echo "[git pre-commit hook - $conflictedFile] - git status"
       git status --porcelain
+      git status
       echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
       git diff --name-only
     done
