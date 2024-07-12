@@ -1,4 +1,15 @@
 #!/bin/sh
+logGitInfo() {
+  if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+    echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
+    git status --porcelain
+    echo "[git pre-commit hook - $conflictedFile] - git status"
+    git status
+    echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
+    git diff --name-only
+  fi
+}
+
 handleMergeCommit() {
   if [ -f .git/MERGE_HEAD ]; then
     echo "[git pre-commit hook] - Merge in progress. Exiting pre-commit hook."
@@ -24,10 +35,10 @@ stageUnStagedChangesInStagedFiles() {
 
 spotlessApply() {
   # We pass in ratchetFrom here to ensure that we only format the files that have changed since the last commit
-  if command -v mvn >/dev/null 2>&1; then          # Check if mvn command exists to support GitHub Desktop on Windows
-    mvn clean spotless:apply -DratchetFrom=HEAD -q # Requires Maven to be installed
+  if command -v mvn >/dev/null 2>&1; then    # Check if mvn command exists to support GitHub Desktop on Windows
+    mvn spotless:apply -DratchetFrom=HEAD -q # Requires Maven to be installed
   else
-    ./mvnw clean spotless:apply -DratchetFrom=HEAD -q # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
+    ./mvnw spotless:apply -DratchetFrom=HEAD -q # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
   fi
 }
 
@@ -36,59 +47,39 @@ handleMergeConflicts() {
   if [ -n "$conflictedFiles" ]; then
     for conflictedFile in $conflictedFiles; do
       echo "[git pre-commit hook] - Resolving conflict for $conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
-      git status --porcelain
-      git status
-      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-      git diff --name-only
+      logGitInfo
 
-      echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+        echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
+      fi
       git checkout --theirs "$(pwd)/$conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status"
-      git status --porcelain
-      git status
-      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-      git diff --name-only
-      echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
+      logGitInfo
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+        echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
+      fi
       git restore --staged "$(pwd)/$conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status"
-      git status --porcelain
-      git status
-      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-      git diff --name-only
+      logGitInfo
 
-      echo "[git pre-commit hook - $conflictedFile] - git status"
-      git status --porcelain
-      git status
-      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-      git diff --name-only
-      echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+        echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
+      fi
       git add "$conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status"
-      git status --porcelain
-      git status
-      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-      git diff --name-only
+      logGitInfo
 
-      echo "[git pre-commit hook - $conflictedFile] - Running spotless:apply"
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+        echo "[git pre-commit hook - $conflictedFile] - Running spotless:apply"
+      fi
       if command -v mvn >/dev/null 2>&1; then
-        mvn clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
+        mvn spotless:apply -DspotlessFiles=".*$conflictedFile" -q
       else
-        ./mvnw clean spotless:apply -DspotlessFiles=".*$conflictedFile" -q
+        ./mvnw spotless:apply -DspotlessFiles=".*$conflictedFile" -q
       fi
 
-      echo "[git pre-commit hook - $conflictedFile] - git status"
-      git status --porcelain
-      git status
-      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-      git diff --name-only
-      echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
-      git add "$conflictedFile"
-      echo "[git pre-commit hook - $conflictedFile] - git status"
-      git status --porcelain
-      git status
-      echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-      git diff --name-only
+      logGitInfo
+      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" -eq 1 ]; then
+        echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
+      fi
+      logGitInfo
     done
   fi
 }
