@@ -1,0 +1,87 @@
+#!/bin/sh
+handleMergeCommit() {
+  if [ -f .git/MERGE_HEAD ]
+  then
+    echo "[git pre-commit hook] - Merge in progress. Exiting pre-commit hook."
+    exit 0
+  fi
+}
+
+handleEmptyCommitAtStart() {
+  git diff --cached --quiet
+  GIT_DIFF=$?
+  if [ "$GIT_DIFF" -eq 0 ]; then
+    echo "[git pre-commit hook] - No changes to commit! This is likely a rebase or merge commit. Exiting pre-commit hook."
+    exit 0
+  fi
+}
+
+stageUnStagedChangesInStagedFiles() {
+  STAGED_FILES=$(git diff --name-only --cached --diff-filter=ad)
+  if [ -n "$STAGED_FILES" ]; then
+    echo "$STAGED_FILES" | xargs git add
+  fi
+}
+
+spotlessApply() {
+  # We pass in ratchetFrom here to ensure that we only format the files that have changed since the last commit
+  if command -v mvn >/dev/null 2>&1; then    # Check if mvn command exists to support GitHub Desktop on Windows
+    mvn spotless:apply -DratchetFrom=HEAD -q # Requires Maven to be installed
+  else
+    ./mvnw spotless:apply -DratchetFrom=HEAD -q # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
+  fi
+}
+
+handleMergeConflicts() {
+  conflictedFiles="$(git diff --name-only --diff-filter=U)"
+  if [ -n "$conflictedFiles" ]; then
+    for conflictedFile in $conflictedFiles; do
+      echo "[git pre-commit hook] - Resolving conflict for $conflictedFile"
+      git checkout --theirs "$(pwd)/$conflictedFile"
+      git restore --staged "$(pwd)/$conflictedFile"
+
+      if command -v mvn >/dev/null 2>&1; then
+        mvn spotless:apply -DspotlessFiles=".*$conflictedFile" -q
+      else
+        ./mvnw spotless:apply -DspotlessFiles=".*$conflictedFile" -q
+      fi
+
+      git add "$conflictedFile"
+    done
+  fi
+}
+
+handleEmptyCommitAtEnd() {
+  git diff --cached --quiet
+  GIT_DIFF=$?
+  if [ "$GIT_DIFF" -eq 0 ]; then
+    echo "[git pre-commit hook] - No changes to commit! Aborting commit!"
+    # We end up with no changes to commit here due to the stashing and un-stashing of changes
+    # where we stash a bad formatting change, apply the formatting, and then un-stash the bad formatting change.
+    #
+    # Example:
+    #   - We accidentally indented 1 line in a file by an extra space. This causes us to stash the extra space, apply the
+    #     formatting which will remove the extra space, and then un-stash the extra space back into the file that the
+    #     formatter just removed. By re-running spotless:apply, we remove the extra space again and remove the file from
+    #     the staging area.
+    #
+    # This results in no changes to commit, so we exit with 1 to prevent committing an empty commit.
+    # We run spotless:apply again here to ensure that the files are formatted correctly and to remove the file from the staging area.
+    spotlessApply
+    exit 1
+  fi
+}
+
+handleMergeCommit
+handleEmptyCommitAtStart
+stageUnStagedChangesInStagedFiles
+git stash clear
+git stash -q --keep-index
+echo "[git pre-commit hook] - Running spotless:apply"
+spotlessApply
+SPOTLESS_APPLY_RESULT=$?
+git add -u
+git stash pop -q
+handleMergeConflicts
+handleEmptyCommitAtEnd
+exit $SPOTLESS_APPLY_RESULT
