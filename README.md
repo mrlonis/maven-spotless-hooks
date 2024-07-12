@@ -6,6 +6,7 @@
   - [Table of Contents](#table-of-contents)
   - [Usage](#usage)
     - [Automatically Update Submodule With Maven](#automatically-update-submodule-with-maven)
+      - [Executed Command](#executed-command)
     - [Install Git Hooks](#install-git-hooks)
 
 ## Usage
@@ -21,7 +22,7 @@ This will add the `maven-spotless-hooks` repository as a submodule in the `.hook
 
 ### Automatically Update Submodule With Maven
 
-Submodules are not cloned by default so you should add a step to your `setup` script in the project to initialize it if it wasn't cloned already. This `setup` script should work for most projects:
+Submodules are not cloned by default so we need to add a plugin to our MAven root `pom.xml` to clone the submodule. The following is the recommended configuration:
 
 ```xml
 <project>
@@ -69,7 +70,13 @@ Submodules are not cloned by default so you should add a step to your `setup` sc
 </project>
 ```
 
+#### Executed Command
+
+The resulting command that is executed is `git submodule update --init --remote --force` which will clone the submodule if it does not exist, update the submodule to the latest commit, throw away local changes in submodules when switching to a different commit; and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
+
 ### Install Git Hooks
+
+We then need to install the git hooks. This can be done by adding the following configuration to the `pom.xml`:
 
 ```xml
 <project>
