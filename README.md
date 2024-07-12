@@ -22,7 +22,7 @@ This will add the `maven-spotless-hooks` repository as a submodule in the `.hook
 
 ### Automatically Update Submodule With Maven
 
-Submodules are not cloned by default so we need to add a plugin to our MAven root `pom.xml` to clone the submodule. The following is the recommended configuration:
+Submodules are not cloned by default so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. The following is the recommended configuration:
 
 ```xml
 <project>
