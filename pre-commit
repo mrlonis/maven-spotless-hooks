@@ -1,6 +1,6 @@
 #!/bin/sh
 logGitInfo() {
-  if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" - 1 ]; then
+  if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
     echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
     git status --porcelain
     echo "[git pre-commit hook - $conflictedFile] - git status"
