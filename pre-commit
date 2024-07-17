@@ -35,7 +35,7 @@ stageUnStagedChangesInStagedFiles() {
 
 spotlessApply() {
   # We pass in ratchetFrom here to ensure that we only format the files that have changed since the last commit
-  if command -v mvn >/dev/null 2>&1; then    # Check if mvn command exists to support GitHub Desktop on Windows
+  if command -v mvn >/dev/null 2>&1; then # Check if mvn command exists to support GitHub Desktop on Windows
     mvn spotless:apply -DratchetFrom=HEAD -q # Requires Maven to be installed
   else
     ./mvnw spotless:apply -DratchetFrom=HEAD -q # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
@@ -77,8 +77,9 @@ handleMergeConflicts() {
 
       logGitInfo
       if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-        echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
+        echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to the staging area"
       fi
+      git add "$conflictedFile"
       logGitInfo
     done
   fi
