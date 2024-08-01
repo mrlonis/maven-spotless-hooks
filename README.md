@@ -195,3 +195,11 @@ We then need to install the git hooks. This can be done by adding the following 
 ### How to fix "git-sh-setup: file not found" in windows
 
 [https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows](https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows)
+
+1. In the Windows Search bar, type `Environment Variables` and select `Edit the system environment variables`
+2. In the `System Properties` window, click on the `Environment Variables` button
+3. In the `Environment Variables` window, under `System variables`, click on `Path` and then click on `Edit`
+4. In the `Edit Environment Variable` window, click on `New` and add the following paths:
+    - `C:\Program Files\Git\usr\bin`
+    - `C:\Program Files\Git\mingw64\libexec\git-core`
+5. These will be added to the end of the list. Click on each one, and then click on `Move Up` until they are at the top of the list
