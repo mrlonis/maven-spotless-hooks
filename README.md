@@ -10,6 +10,7 @@
       - [Excluding submodule updates during CI](#excluding-submodule-updates-during-ci)
         - [GitHub Actions](#github-actions)
     - [Install Git Hooks](#install-git-hooks)
+    - [(Optional) Update Project README.md](#optional-update-project-readmemd)
   - [Setting up Spotless](#setting-up-spotless)
     - [Pre-requisites](#pre-requisites)
       - [Maven Wrapper Setup](#maven-wrapper-setup)
@@ -199,6 +200,28 @@ We then need to install the git hooks. This can be done by adding the following 
   ...
 </project>
 ```
+
+### (Optional) Update Project README.md
+
+Consider adding something like the following to your project's `README.md` file, replacing the Java versions with the versions you are using:
+
+````markdown
+## Setup
+
+If this is your first time opening or working on this project, you will need to run the following commands to set up the project:
+
+```sh
+./mvnw clean verify
+```
+
+This will install the necessary git hooks and update the submodule to the latest version. After performing this command at least one time, you won't need to do anything else. When you go to commit, the `spotless` formatter and pre-commit hooks will run automatically, formatting your code to the project's code style for easier PR review.
+
+### Windows Setup Caveat
+
+Windows users whose project is located within a filepath that contains a space will experience issues with Maven wrapper and should instead globally install `Maven` via `choco install maven -y` and run `mvn clean verify` instead. This typically happens due to the `C:\Users\<USERNAME>\` path containing a space (in this case `<USERNAME>` being something like `John Doe`).
+
+A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `Maven Wrapper`. Instead, move the project to a different location, such as `C:\projects\fake` or `C:\GitHub\projects\fake` and run the command again. This is a known issue with the `Maven Wrapper` and is not specific to this project.
+````
 
 ## Setting up Spotless
 
