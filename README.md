@@ -10,8 +10,14 @@
       - [Excluding submodule updates during CI](#excluding-submodule-updates-during-ci)
         - [GitHub Actions](#github-actions)
     - [Install Git Hooks](#install-git-hooks)
+  - [Setting up Spotless](#setting-up-spotless)
   - [Troubleshooting](#troubleshooting)
     - [How to fix "git-sh-setup: file not found" in windows](#how-to-fix-git-sh-setup-file-not-found-in-windows)
+    - [Windows: Dynamic JAVA\_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
+      - [PowerShell Profile](#powershell-profile)
+        - [Notepad](#notepad)
+        - [VS Code](#vs-code)
+        - [Profile Content](#profile-content)
 
 ## Usage
 
@@ -141,10 +147,9 @@ This works by checking for the absence of an environment variable `SOME_ENV_VAR`
 If you are using GitHub Actions, you can exclude the submodule update by adding the following `env` configuration to the `.github/workflows/*.yml` file:
 
 ```yaml
-...
+---
 env:
   SOME_ENV_VAR: this_can_be_anything_since_we_are_checking_for_its_absence_not_its_value
-...
 ```
 
 ### Install Git Hooks
@@ -190,6 +195,10 @@ We then need to install the git hooks. This can be done by adding the following 
 </project>
 ```
 
+## Setting up Spotless
+
+**Note**: To follow this section, your project must be at least on `Java 11`.
+
 ## Troubleshooting
 
 ### How to fix "git-sh-setup: file not found" in windows
@@ -200,6 +209,90 @@ We then need to install the git hooks. This can be done by adding the following 
 2. In the `System Properties` window, click on the `Environment Variables` button
 3. In the `Environment Variables` window, under `System variables`, click on `Path` and then click on `Edit`
 4. In the `Edit Environment Variable` window, click on `New` and add the following paths:
-    - `C:\Program Files\Git\usr\bin`
-    - `C:\Program Files\Git\mingw64\libexec\git-core`
+   - `C:\Program Files\Git\usr\bin`
+   - `C:\Program Files\Git\mingw64\libexec\git-core`
 5. These will be added to the end of the list. Click on each one, and then click on `Move Up` until they are at the top of the list
+
+### Windows: Dynamic JAVA_HOME Env Variable Changing
+
+#### PowerShell Profile
+
+Run the following command in PowerShell to determine your `$profile` path:
+
+```powershell
+echo $profile
+```
+
+Then, open the file in your favorite text editor:
+
+##### Notepad
+
+```powershell
+notepad.exe $profile
+```
+
+##### VS Code
+
+```powershell
+code $profile
+```
+
+##### Profile Content
+
+Below is the content of the PowerShell profile. This profile will give you dynamic functions, aptly named `java8`, `java11`, `java17`, and `java21` to set the JAVA_HOME environment variable to the correct version of Java. You can then run these functions in PowerShell to switch between Java versions at will in the CLI. However, this **ONLY** works in an `Administrator PowerShell` session.
+
+```powershell
+$global:JAVA_8_PATH = 'C:\Program Files\Eclipse Adoptium\jdk-8.0.442.6-hotspot' # Replace with your correct version
+$global:JAVA_11_PATH = 'C:\Program Files\Eclipse Adoptium\jdk-11.0.26.4-hotspot' # Replace with your correct version
+$global:JAVA_17_PATH = 'C:\Program Files\Eclipse Adoptium\jdk-17.0.14.7-hotspot' # Replace with your correct version
+$global:JAVA_21_PATH = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.6.7-hotspot' # Replace with your correct version
+
+function java8 {
+  $env:JAVA_HOME = $global:JAVA_8_PATH
+  $env:Path = "$env:JAVA_HOME\bin;" + ($env:Path -split ';' | Where-Object { $_ -notmatch '\\jdk.*?\\bin' }) -join ';'
+  Write-Host "JAVA_HOME set to: $env:JAVA_HOME"
+  [Environment]::SetEnvironmentVariable('JAVA_HOME', $env:JAVA_HOME, 'Machine')
+  Write-Host "Executing java --version to verify java version"
+  # Note how Java 8 uses -version instead of --version
+  # --version was introduced in Java 9+
+  Write-Host $(java -version)
+}
+function java11 {
+  $env:JAVA_HOME = $global:JAVA_11_PATH
+  $env:Path = "$env:JAVA_HOME\bin;" + ($env:Path -split ';' | Where-Object { $_ -notmatch '\\jdk.*?\\bin' }) -join ';'
+  Write-Host "JAVA_HOME set to: $env:JAVA_HOME"
+  [Environment]::SetEnvironmentVariable('JAVA_HOME', $env:JAVA_HOME, 'Machine')
+  Write-Host "Executing java --version to verify java version"
+  Write-Host $(java --version)
+}
+function java17 {
+  $env:JAVA_HOME = $global:JAVA_17_PATH
+  $env:Path = "$env:JAVA_HOME\bin;" + ($env:Path -split ';' | Where-Object { $_ -notmatch '\\jdk.*?\\bin' }) -join ';'
+  Write-Host "JAVA_HOME set to: $env:JAVA_HOME"
+  [Environment]::SetEnvironmentVariable('JAVA_HOME', $env:JAVA_HOME, 'Machine')
+  Write-Host "Executing java --version to verify java version"
+  Write-Host $(java --version)
+}
+function java21 {
+  $env:JAVA_HOME = $global:JAVA_21_PATH
+  $env:Path = "$env:JAVA_HOME\bin;" + ($env:Path -split ';' | Where-Object { $_ -notmatch '\\jdk.*?\\bin' }) -join ';'
+  Write-Host "JAVA_HOME set to: $env:JAVA_HOME"
+  [Environment]::SetEnvironmentVariable('JAVA_HOME', $env:JAVA_HOME, 'Machine')
+  Write-Host "Executing java --version to verify java version"
+  Write-Host $(java --version)
+}
+
+Import-Module PSReadLine
+Set-PSReadLineOption -PredictionSource History
+
+# Import the Chocolatey Profile that contains the necessary code to enable
+# tab-completions to function for `choco`.
+# Be aware that if you are missing these lines from your profile, tab completion
+# for `choco` will not function.
+# See https://ch0.co/tab-completion for details.
+$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+if (Test-Path($ChocolateyProfile)) {
+  Import-Module "$ChocolateyProfile"
+}
+
+```
