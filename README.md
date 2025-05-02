@@ -5,7 +5,7 @@
 - [maven-spotless-hooks](#maven-spotless-hooks)
   - [Table of Contents](#table-of-contents)
   - [Usage](#usage)
-    - [(Optional) Automatically Update Submodule With Maven](#optional-automatically-update-submodule-with-maven)
+    - [Automatically Update Submodule With Maven](#automatically-update-submodule-with-maven)
       - [Executed Command](#executed-command)
       - [Excluding submodule updates during CI](#excluding-submodule-updates-during-ci)
         - [GitHub Actions](#github-actions)
@@ -19,6 +19,11 @@
     - [Plugin Documentation](#plugin-documentation)
   - [Troubleshooting](#troubleshooting)
     - [How to fix "git-sh-setup: file not found" in windows](#how-to-fix-git-sh-setup-file-not-found-in-windows)
+      - [Git Environment Variable Repair](#git-environment-variable-repair)
+    - [Disabling Spotless](#disabling-spotless)
+      - [Use Cases](#use-cases)
+      - [Bamboo Example](#bamboo-example)
+      - [GitHub Actions Example](#github-actions-example)
     - [Windows: Dynamic JAVA\_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
       - [PowerShell Profile](#powershell-profile)
         - [Notepad](#notepad)
@@ -27,18 +32,18 @@
 
 ## Usage
 
-This repo should be added to another repo as a submodule
+This repository should be added to another repository as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules):
 
 ```sh
 git submodule add -b main https://github.com/mrlonis/maven-spotless-hooks.git .hooks/
 git commit -m "Adding maven-spotless-hooks"
 ```
 
-This will add the `maven-spotless-hooks` repository as a submodule in the `.hooks` folder within your project.
+This will add the `maven-spotless-hooks` repository as a `submodule` in the `.hooks` folder within `your project`.
 
-### (Optional) Automatically Update Submodule With Maven
+### Automatically Update Submodule With Maven
 
-Submodules are not cloned by default so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. The following is the recommended configuration:
+`Submodules` are not cloned by default on a fresh clone from GitHub so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. The following is the recommended configuration (**hold off on copying this! You likely want to NOT run this in your CI/CD pipeline. Continue reading to find out how to do this**):
 
 ```xml
 <project>
@@ -88,11 +93,11 @@ Submodules are not cloned by default so we need to add a plugin to our Maven roo
 
 #### Executed Command
 
-The resulting command that is executed is `git submodule update --init --remote --force` which will clone the submodule if it does not exist, update the submodule to the latest commit, throw away local changes in submodules when switching to a different commit; and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
+The resulting command that is executed is `git submodule update --init --remote --force` which will `clone the submodule` if it does not exist, `update the submodule` to the latest commit, throw away local changes in submodules when switching to a different commit, and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
 
 #### Excluding submodule updates during CI
 
-If you are using a CI/CD pipeline, you may want to exclude the submodule update during the CI/CD pipeline. This can be done by adding the following configuration to the `pom.xml`:
+If you are using a CI/CD pipeline, you may want to `exclude the submodule update during the CI/CD pipeline`. This can be done by adding the following configuration to the `pom.xml`:
 
 ```xml
 <project>
@@ -153,14 +158,13 @@ This works by checking for the absence of an environment variable `SOME_ENV_VAR`
 If you are using GitHub Actions, you can exclude the submodule update by adding the following `env` configuration to the `.github/workflows/*.yml` file:
 
 ```yaml
----
 env:
   SOME_ENV_VAR: this_can_be_anything_since_we_are_checking_for_its_absence_not_its_value
 ```
 
 ### Install Git Hooks
 
-We then need to install the git hooks. This can be done by adding the following configuration to the `pom.xml`:
+Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper `git hooks`. This can be done by adding the following configuration to your application's `pom.xml`:
 
 ```xml
 <project>
@@ -242,7 +246,7 @@ You can do this in almost any IDE, since they often bundle Maven into the IDE it
 
 ##### Adding .gitattributes
 
-If your project doesn't have a .gitattributes file, create one in the root of your project and add the following lines:
+If your project doesn't have a `.gitattributes` file, create one in the root of your project and add the following lines:
 
 ```gitattributes
 /mvnw text eol=lf
@@ -256,6 +260,8 @@ If your project doesn't have a .gitattributes file, create one in the root of yo
 This is **NOT** optional. Failure to do this, and messing up the line endings for `*.cmd` or the `mvnw` script files will cause issues with users on Windows and Mac. Mac cannot run `mvnw` if the line endings are `crlf`, and Windows cannot run `*.cmd*` if the line endings are not `crlf`.
 
 ### Basic Plugin Setup
+
+Below is a full-fat `spotless` configuration, configuring many file types, including `Java`, `XML`, `JSON`, `YAML`, `HTML`, `Markdown`, and `SQL`. This is a recommended configuration for most projects. You can remove the sections that you do not need. It is recommended to add everything **BUT** the `java` section to start with. Get that working in your local development workflow and your CI/CD. Merge those changes to your main branch. Then, add the `java` section to the `spotless` configuration. This will allow you to get the formatting on the Java files without having to setup the overall configuration and process in one go, reducing the burden on code reviewers and limiting the blast radius of merge conflicts on your most important files; Java files.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -547,6 +553,16 @@ To find out more information about the `spotless-maven-plugin`, please refer to 
 
 ### How to fix "git-sh-setup: file not found" in windows
 
+For starters, make sure you have the latest version of `git` installed. If you are using `choco`, you can run the following command to update `git`:
+
+```sh
+choco upgrade git -y
+```
+
+and if you don't use `choco` to manage `git`, you can download the latest version of `git` from the [Git for Windows](https://gitforwindows.org/) website.
+
+#### Git Environment Variable Repair
+
 [https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows](https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows)
 
 1. In the Windows Search bar, type `Environment Variables` and select `Edit the system environment variables`
@@ -556,6 +572,82 @@ To find out more information about the `spotless-maven-plugin`, please refer to 
    - `C:\Program Files\Git\usr\bin`
    - `C:\Program Files\Git\mingw64\libexec\git-core`
 5. These will be added to the end of the list. Click on each one, and then click on `Move Up` until they are at the top of the list
+
+### Disabling Spotless
+
+If you ever need or want to disable `spotless`, we can do so by specifying a Maven profile. This can be done by adding the following profile configuration to the `pom.xml`:
+
+```xml
+<project>
+  ...
+  <profiles>
+    <profile>
+      <id>github</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.diffplug.spotless</groupId>
+            <artifactId>spotless-maven-plugin</artifactId>
+            <version>${spotless.version}</version>
+            <executions>
+              <execution>
+                <phase>none</phase>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    ...
+  </profiles>
+  ...
+</project>
+```
+
+This will setup a profile called `github` that will disable the `spotless` plugin. You can then run the following command to disable `spotless`:
+
+```sh
+mvn clean verify -P github
+```
+
+#### Use Cases
+
+This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted me with projects that are strictly JAR releases instead of full Spring Boot applications that get deployed out.
+
+#### Bamboo Example
+
+Your `Bamboo Specs` or `Bamboo UI` should be configured to run the following command:
+
+```sh
+mvn clean verify -P github
+```
+
+The key here is the `-P github` flag. This will run the `github` profile and disable the `spotless` plugin.
+
+#### GitHub Actions Example
+
+```yaml
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: "11"
+      - name: Build with Maven
+        run: mvn clean verify -P github # Notice the -P github flag here
+```
 
 ### Windows: Dynamic JAVA_HOME Env Variable Changing
 
@@ -625,18 +717,4 @@ function java21 {
   Write-Host "Executing java --version to verify java version"
   Write-Host $(java --version)
 }
-
-Import-Module PSReadLine
-Set-PSReadLineOption -PredictionSource History
-
-# Import the Chocolatey Profile that contains the necessary code to enable
-# tab-completions to function for `choco`.
-# Be aware that if you are missing these lines from your profile, tab completion
-# for `choco` will not function.
-# See https://ch0.co/tab-completion for details.
-$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path($ChocolateyProfile)) {
-  Import-Module "$ChocolateyProfile"
-}
-
 ```
