@@ -10,6 +10,8 @@
       - [Excluding submodule updates during CI](#excluding-submodule-updates-during-ci)
         - [GitHub Actions](#github-actions)
     - [Install Git Hooks](#install-git-hooks)
+      - [Maven Hook Installation](#maven-hook-installation)
+      - [Manual Hook Installation](#manual-hook-installation)
     - [(Optional) Update Project README.md](#optional-update-project-readmemd)
   - [Setting up Spotless](#setting-up-spotless)
     - [Pre-requisites](#pre-requisites)
@@ -164,7 +166,11 @@ env:
 
 ### Install Git Hooks
 
-Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper `git hooks`. This can be done by adding the following configuration to your application's `pom.xml`:
+Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper `git hooks`.
+
+#### Maven Hook Installation
+
+This can be done by adding the following configuration to your application's `pom.xml`:
 
 ```xml
 <project>
@@ -203,6 +209,20 @@ Simply adding this `submodule` is not enough. We then need to install the script
   </build>
   ...
 </project>
+```
+
+Then, anytime any develop runs any command in Maven that targets the `install` goal as part of its build lifecycle, the `git-build-hook-maven-plugin` will install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and pre-commit hooks automatically when you commit your code.
+
+#### Manual Hook Installation
+
+If you do not want to use the `git-build-hook-maven-plugin`, you can manually install the hooks by running the following command:
+
+```sh
+# Unix/Mac
+sh .hooks/install-hooks.sh
+
+# Windows (PowerShell)
+.\.hooks\install-hooks.ps1
 ```
 
 ### (Optional) Update Project README.md
