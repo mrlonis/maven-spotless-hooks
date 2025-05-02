@@ -1,9 +1,18 @@
 # maven-spotless-hooks
 
+These hooks are Git-native and IDE-agnostic. You do not need to configure anything inside IntelliJ, Eclipse, or VS Code.
+
 ## Table of Contents
 
 - [maven-spotless-hooks](#maven-spotless-hooks)
   - [Table of Contents](#table-of-contents)
+  - [Contributing](#contributing)
+  - [Why Spotless?](#why-spotless)
+    - [What These Hooks Do](#what-these-hooks-do)
+    - [Included Hooks](#included-hooks)
+  - [Flow Chart](#flow-chart)
+    - [Conflict Resolution](#conflict-resolution)
+    - [Hook Behavior During Merge/Rebase](#hook-behavior-during-mergerebase)
   - [Usage](#usage)
     - [Automatically Update Submodule With Maven](#automatically-update-submodule-with-maven)
       - [Executed Command](#executed-command)
@@ -31,6 +40,50 @@
         - [Notepad](#notepad)
         - [VS Code](#vs-code)
         - [Profile Content](#profile-content)
+    - [Debugging These Scripts](#debugging-these-scripts)
+
+## Contributing
+
+PRs welcome! Please open an issue first for discussion.
+
+## Why Spotless?
+
+There really isn’t a strong alternative.
+
+Spotless is one of the very few formatting tools that works seamlessly with both Maven and Gradle, and can be integrated into Java projects without requiring new tooling ecosystems or language server configuration. It handles multi-format linting, supports widely accepted formatting styles (like Palantir Java Format), and is extremely customizable—yet doesn't get in your way.
+
+If you’re coming from a frontend or Python world, tools like `prettier`, `black`, or `eslint` offer tight `pre-commit` integration out of the box. In the `Java` ecosystem, that level of integration is oddly lacking. `Spotless` fills that gap with the added benefit of being language-agnostic across file types.
+
+### What These Hooks Do
+
+This repo provides Git pre-commit and post-commit hooks that automatically run Spotless on files you've changed. This ensures consistent formatting and reduces noisy diffs before commits ever hit your branch.
+
+### Included Hooks
+
+- `pre-commit`: Applies `Spotless` to staged files before commit
+- `post-commit`: Re-runs `Spotless` after commit to handle missed diffs
+
+## Flow Chart
+
+```pqsql
+git commit
+   ↓
+pre-commit hook
+   ↓
+spotless:apply
+   ↓
+conflict resolution
+   ↓
+commit allowed or blocked
+```
+
+### Conflict Resolution
+
+These hooks are designed to stash non-committed changes prior to commit, so that when `spotless` is run, it can apply the formatting to only the files being changed. After un-stashing, if there are conflicts, we will resolve them, re-run `spotless`, and re-commit the changes. This is done to ensure that the commit is always in a clean state, and that `spotless` has been applied before committing.
+
+### Hook Behavior During Merge/Rebase
+
+These hooks are merge-aware and won’t interfere with merge commits or rebases. Conflicting files are automatically resolved in favor of 'theirs' and re-staged after formatting.
 
 ## Usage
 
@@ -211,7 +264,7 @@ This can be done by adding the following configuration to your application's `po
 </project>
 ```
 
-Then, anytime any develop runs any command in Maven that targets the `install` goal as part of its build lifecycle, the `git-build-hook-maven-plugin` will install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and pre-commit hooks automatically when you commit your code.
+Then, anytime any developer runs any commands in Maven that target the `install` goal as part of its build lifecycle, the `git-build-hook-maven-plugin` will install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and `pre-commit` hooks automatically when you commit your code.
 
 #### Manual Hook Installation
 
@@ -225,7 +278,7 @@ sh .hooks/install-hooks.sh
 .\.hooks\install-hooks.ps1
 ```
 
-**Note**: The above commands assume you are in the root of your project. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
+> **Note**: The above commands assume you are in the root of your project. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
 
 ### (Optional) Update Project README.md
 
@@ -254,6 +307,7 @@ A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `M
 ### Pre-requisites
 
 - Your project must be on `Java 11`
+  - [Windows: Dynamic JAVA_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
 - Your project must have the `Maven Wrapper` configured
 
 #### Maven Wrapper Setup
@@ -265,6 +319,10 @@ mvn wrapper:wrapper -Dmaven=3.8.8
 ```
 
 You can do this in almost any IDE, since they often bundle Maven into the IDE itself. It is fine to continue using the bundled Maven when in the IDE, but we need the Maven Wrapper to perform `pre-commit` commands.
+
+> You can keep using your IDE’s Maven integration for builds and testing, but pre-commit hooks must run through the Maven Wrapper (`./mvnw`) to ensure consistency across environments. Additionally, for users who do **not** have Maven installed, the wrapper will download the correct version of Maven for them. Otherwise, this `pre-commit` process would **force** all developers to install yet another tool on their local machine. This is not ideal, and we want to avoid that if possible.
+
+Despite the above warning, your IDEs built-in git process will also run these hooks. At the end of the day, these hooks simply go into your `.git/hooks/` directory and are run by git. So, if you are using IntelliJ, Eclipse, or VS Code, the hooks will run as expected. The wrapper is purely for CLI needs.
 
 ##### Adding .gitattributes
 
@@ -279,7 +337,7 @@ If your project doesn't have a `.gitattributes` file, create one in the root of 
 * text=auto
 ```
 
-This is **NOT** optional. Failure to do this, and messing up the line endings for `*.cmd` or the `mvnw` script files will cause issues with users on Windows and Mac. Mac cannot run `mvnw` if the line endings are `crlf`, and Windows cannot run `*.cmd*` if the line endings are not `crlf`.
+> This is **NOT** optional. Failure to do this, and messing up the line endings for `*.cmd` or the `mvnw` script files will cause issues with users on Windows and Mac. Mac cannot run `mvnw` if the line endings are `crlf`, and Windows cannot run `*.cmd*` if the line endings are not `crlf`.
 
 ### Basic Plugin Setup
 
@@ -289,7 +347,7 @@ Below is a full-fat `spotless` configuration, configuring many file types, inclu
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <properties>
-    <cleanthat.vesion>2.20</cleanthat.vesion>
+    <cleanthat.version>2.20</cleanthat.version>
     <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
     <git-build-hook-maven-plugin.version>3.5.0</git-build-hook-maven-plugin.version>
     <java.version>11</java.version> <!-- Replace with correct version, but minimum required is 11 -->
@@ -387,7 +445,7 @@ Below is a full-fat `spotless` configuration, configuring many file types, inclu
               <include>src/test/java/**/*.java</include>
             </includes>
             <cleanthat>
-              <version>${cleanthat.vesion}</version>
+              <version>${cleanthat.version}</version>
               <mutators>
                 <mutator>SafeAndConsensual</mutator>
                 <mutator>SafeButNotConsensual</mutator>
@@ -697,7 +755,9 @@ code $profile
 
 ##### Profile Content
 
-Below is the content of the PowerShell profile. This profile will give you dynamic functions, aptly named `java8`, `java11`, `java17`, and `java21` to set the JAVA_HOME environment variable to the correct version of Java. You can then run these functions in PowerShell to switch between Java versions at will in the CLI. However, this **ONLY** works in an `Administrator PowerShell` session.
+Below is the content of the PowerShell profile. This profile will give you dynamic functions, aptly named `java8`, `java11`, `java17`, and `java21` to set the JAVA_HOME environment variable to the correct version of Java. You can then run these functions in PowerShell to switch between Java versions at will in the CLI.
+
+> **Note**: This **ONLY** works in an `Administrator PowerShell` session. This is a Windows security limitation. Standard user shells cannot persist environment variables machine-wide.
 
 ```powershell
 $global:JAVA_8_PATH = 'C:\Program Files\Eclipse Adoptium\jdk-8.0.442.6-hotspot' # Replace with your correct version
@@ -740,3 +800,7 @@ function java21 {
   Write-Host $(java --version)
 }
 ```
+
+### Debugging These Scripts
+
+To debug these scripts, simply set the `MAVEN_SPOTLESS_HOOKS_DEBUG` environment variable to `1`.
