@@ -225,6 +225,8 @@ sh .hooks/install-hooks.sh
 .\.hooks\install-hooks.ps1
 ```
 
+**Note**: The above commands assume you are in the root of your project. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
+
 ### (Optional) Update Project README.md
 
 Consider adding something like the following to your project's `README.md` file, replacing the Java versions with the versions you are using:
