@@ -5,7 +5,7 @@
 - [maven-spotless-hooks](#maven-spotless-hooks)
   - [Table of Contents](#table-of-contents)
   - [Usage](#usage)
-    - [Automatically Update Submodule With Maven](#automatically-update-submodule-with-maven)
+    - [(Optional) Automatically Update Submodule With Maven](#optional-automatically-update-submodule-with-maven)
       - [Executed Command](#executed-command)
       - [Excluding submodule updates during CI](#excluding-submodule-updates-during-ci)
         - [GitHub Actions](#github-actions)
@@ -36,7 +36,7 @@ git commit -m "Adding maven-spotless-hooks"
 
 This will add the `maven-spotless-hooks` repository as a submodule in the `.hooks` folder within your project.
 
-### Automatically Update Submodule With Maven
+### (Optional) Automatically Update Submodule With Maven
 
 Submodules are not cloned by default so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. The following is the recommended configuration:
 
