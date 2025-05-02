@@ -11,6 +11,10 @@
         - [GitHub Actions](#github-actions)
     - [Install Git Hooks](#install-git-hooks)
   - [Setting up Spotless](#setting-up-spotless)
+    - [Pre-requisites](#pre-requisites)
+      - [Maven Wrapper Setup](#maven-wrapper-setup)
+        - [Adding .gitattributes](#adding-gitattributes)
+    - [Basic Plugin Setup](#basic-plugin-setup)
   - [Troubleshooting](#troubleshooting)
     - [How to fix "git-sh-setup: file not found" in windows](#how-to-fix-git-sh-setup-file-not-found-in-windows)
     - [Windows: Dynamic JAVA\_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
@@ -197,7 +201,319 @@ We then need to install the git hooks. This can be done by adding the following 
 
 ## Setting up Spotless
 
-**Note**: To follow this section, your project must be at least on `Java 11`.
+### Pre-requisites
+
+- Your project must be on `Java 11`
+- Your project must have the `Maven Wrapper` configured
+
+#### Maven Wrapper Setup
+
+To add Maven wrapper to your project, run the following command:
+
+```sh
+mvn wrapper:wrapper -Dmaven=3.8.8
+```
+
+You can do this in almost any IDE, since they often bundle Maven into the IDE itself. It is fine to continue using the bundled Maven when in the IDE, but we need the Maven Wrapper to perform `pre-commit` commands.
+
+##### Adding .gitattributes
+
+If your project doesn't have a .gitattributes file, create one in the root of your project and add the following lines:
+
+```gitattributes
+/mvnw text eol=lf
+*.cmd text eol=crlf
+# Add other files here before the * text=auto
+# *.png binary
+# * text=auto should be the last line in the file
+* text=auto
+```
+
+This is **NOT** optional. Failure to do this, and messing up the line endings for `*.cmd` or the `mvnw` script files will cause issues with users on Windows and Mac. Mac cannot run `mvnw` if the line endings are `crlf`, and Windows cannot run `*.cmd*` if the line endings are not `crlf`.
+
+### Basic Plugin Setup
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <properties>
+    <cleanthat.vesion>2.20</cleanthat.vesion>
+    <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
+    <git-build-hook-maven-plugin.version>3.5.0</git-build-hook-maven-plugin.version>
+    <java.version>11</java.version> <!-- Replace with correct version, but minimum required is 11 -->
+    <palantir-java-format.version>2.63.0</palantir-java-format.version>
+    <spotless.version>2.44.4</spotless.version>
+  </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.palantir.javaformat</groupId>
+        <artifactId>palantir-java-format</artifactId>
+        <version>${palantir-java-format.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.solven-eu.cleanthat</groupId>
+        <artifactId>spotless</artifactId>
+        <version>${cleanthat.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <dependencies>
+    ...
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <formats>
+            <format>
+              <includes>
+                <include>.mvn/wrapper/maven-wrapper.properties</include>
+                <include>.gitattributes</include>
+                <include>.gitignore</include>
+                <include>.gitmodules</include>
+                <include>lombok.config</include>
+                <include>mvnw</include>
+              </includes>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
+            </format>
+            <format>
+              <includes>
+                <!-- This is separate to enforce proper line endings. See the Maven Wrapper Setup section for more information -->
+                <!-- Delete these comments when adding to your project -->
+                <include>mvnw.cmd</include>
+              </includes>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
+            </format>
+            <format>
+              <includes>
+                <include>.github/**/*.yml</include>
+                <include>.mvn/**/*.xml</include>
+                <include>.vscode/**/*.json</include>
+                <include>src/**/*.json</include>
+                <include>src/**/*.html</include>
+                <include>src/**/*.xml</include>
+                <include>src/**/*.yaml</include>
+                <include>src/**/*.yml</include>
+                <include>.prettierrc</include>
+                <include>compose.yml</include>
+                <include>compose.yaml</include>
+              </includes>
+              <prettier>
+                <npmInstallCache>true</npmInstallCache>
+                <devDependencyProperties>
+                  <property>
+                    <name>prettier</name>
+                    <value>^3</value>
+                  </property>
+                  <property>
+                    <name>@prettier/plugin-xml</name>
+                    <value>^3</value>
+                  </property>
+                </devDependencyProperties>
+                <config>
+                  <printWidth>120</printWidth>
+                  <xmlSelfClosingSpace>false</xmlSelfClosingSpace>
+                  <xmlSortAttributesByKey>true</xmlSortAttributesByKey>
+                  <!-- The STRICT sensitivity here is REALLY important. DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING AND THE IMPLICATIONS CHANGING IT MEANS -->
+                  <xmlWhitespaceSensitivity>strict</xmlWhitespaceSensitivity>
+                  <plugins>@prettier/plugin-xml</plugins>
+                </config>
+              </prettier>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
+            </format>
+          </formats>
+          <java>
+            <includes>
+              <include>src/main/java/**/*.java</include>
+              <include>src/test/java/**/*.java</include>
+            </includes>
+            <cleanthat>
+              <version>${cleanthat.vesion}</version>
+              <mutators>
+                <mutator>SafeAndConsensual</mutator>
+                <mutator>SafeButNotConsensual</mutator>
+              </mutators>
+            </cleanthat>
+            <palantirJavaFormat>
+              <version>${palantir-java-format.version}</version>
+              <style>PALANTIR</style>
+              <formatJavadoc>true</formatJavadoc>
+            </palantirJavaFormat>
+            <formatAnnotations/>
+            <removeUnusedImports/>
+            <importOrder/>
+            <trimTrailingWhitespace/>
+            <endWithNewline/>
+          </java>
+          <pom>
+            <includes>
+              <include>pom.xml</include>
+            </includes>
+            <sortPom>
+              <expandEmptyElements>false</expandEmptyElements>
+              <lineSeparator>\n</lineSeparator>
+              <keepBlankLines>false</keepBlankLines>
+              <sortDependencies>scope,groupId,artifactId</sortDependencies>
+              <sortDependencyExclusions>groupId,artifactId</sortDependencyExclusions>
+              <sortDependencyManagement>scope,groupId,artifactId</sortDependencyManagement>
+              <sortPlugins>groupId,artifactId</sortPlugins>
+              <sortProperties>true</sortProperties>
+            </sortPom>
+            <trimTrailingWhitespace/>
+            <endWithNewline/>
+          </pom>
+          <markdown>
+            <includes>
+              <include>**/*.md</include>
+            </includes>
+            <excludes>
+              <exclude>.hooks/**/*.md</exclude>
+              <exclude>target/**/*.md</exclude>
+            </excludes>
+            <flexmark/>
+            <trimTrailingWhitespace/>
+            <endWithNewline/>
+          </markdown>
+          <sql>
+            <includes>
+              <include>src/**/*.sql</include>
+            </includes>
+            <prettier>
+              <npmInstallCache>true</npmInstallCache>
+              <devDependencyProperties>
+                <property>
+                  <name>prettier</name>
+                  <value>^3</value>
+                </property>
+                <property>
+                  <name>prettier-plugin-sql</name>
+                  <value>~0.18</value>
+                </property>
+              </devDependencyProperties>
+              <config>
+                <printWidth>120</printWidth>
+                <plugins>prettier-plugin-sql</plugins>
+              </config>
+            </prettier>
+          </sql>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.rudikershaw.gitbuildhook</groupId>
+        <artifactId>git-build-hook-maven-plugin</artifactId>
+        <version>${git-build-hook-maven-plugin.version}</version>
+        <configuration>
+          <installHooks>
+            <pre-commit>.hooks/pre-commit</pre-commit>
+            <post-commit>.hooks/post-commit</post-commit>
+          </installHooks>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>install</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgs>
+            <arg>-Xlint:all</arg>
+            <!-- -proc:full is only needed for Java 21+ -->
+            <arg>-proc:full</arg>
+          </compilerArgs>
+          <showDeprecation>true</showDeprecation>
+          <showWarnings>true</showWarnings>
+        </configuration>
+      </plugin>
+      <!-- Only needed for mvn versions:display-plugin-updates -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-maven</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>3.8</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- -XX:+EnableDynamicAgentLoading is only needed for Java 21+ -->
+          <argLine>-XX:+EnableDynamicAgentLoading</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <profiles>
+    <profile>
+      <id>local-development</id>
+      <activation>
+        <property>
+          <name>!env.SOME_ENV_VAR</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${exec-maven-plugin.version}</version>
+            <inherited>false</inherited>
+            <executions>
+              <execution>
+                <id>git submodule update</id>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>initialize</phase>
+                <configuration>
+                  <executable>git</executable>
+                  <arguments>
+                    <argument>submodule</argument>
+                    <argument>update</argument>
+                    <argument>--init</argument>
+                    <argument>--remote</argument>
+                    <argument>--force</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
+```
 
 ## Troubleshooting
 
