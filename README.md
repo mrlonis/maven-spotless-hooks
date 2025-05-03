@@ -126,12 +126,12 @@ These hooks are merge-aware and won’t interfere with merge commits or rebases.
 
 ## Setting up Spotless
 
-For more information on how to set up `spotless`, please refer to [SPOTLESS-CONFIG.md](SPOTLESS-CONFIG.md).
+For more information on how to set up `spotless`, please refer to [SPOTLESS-CONFIG.md](./docs/SPOTLESS-CONFIG.md).
 
 ## Advanced Configuration
 
-For more advanced configuration information, such as how to automatically update the submodule with Maven, exclude submodule updates during CI, or a sample `README.md` change to make to your project, please refer to [ADVANCED-CONFIGURATION.md](ADVANCED-CONFIGURATION.md).
+For more advanced configuration information, such as how to automatically update the submodule with Maven, exclude submodule updates during CI, or a sample `README.md` change to make to your project, please refer to [ADVANCED-CONFIGURATION.md](./docs/ADVANCED-CONFIGURATION.md).
 
 ## Troubleshooting
 
-For troubleshooting, please refer to [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+For troubleshooting, please refer to [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).
