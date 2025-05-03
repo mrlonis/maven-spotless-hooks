@@ -13,21 +13,22 @@ These hooks are Git-native and IDE-agnostic. You do not need to configure anythi
   - [Flow Chart](#flow-chart)
     - [Conflict Resolution](#conflict-resolution)
     - [Hook Behavior During Merge/Rebase](#hook-behavior-during-mergerebase)
-  - [Usage](#usage)
+  - [Quickstart](#quickstart)
+    - [Install Git Hooks](#install-git-hooks)
+      - [Manual Hook Installation (Not Recommended)](#manual-hook-installation-not-recommended)
+      - [Automatic Maven Hook Installation](#automatic-maven-hook-installation)
+  - [Setting up Spotless](#setting-up-spotless)
+    - [Pre-requisites](#pre-requisites)
+    - [Maven Wrapper Setup](#maven-wrapper-setup)
+    - [Adding .gitattributes](#adding-gitattributes)
+    - [Basic Plugin Setup](#basic-plugin-setup)
+    - [Plugin Documentation](#plugin-documentation)
+  - [Advanced Configuration](#advanced-configuration)
     - [Automatically Update Submodule With Maven](#automatically-update-submodule-with-maven)
       - [Executed Command](#executed-command)
       - [Excluding submodule updates during CI](#excluding-submodule-updates-during-ci)
         - [GitHub Actions](#github-actions)
-    - [Install Git Hooks](#install-git-hooks)
-      - [Maven Hook Installation](#maven-hook-installation)
-      - [Manual Hook Installation](#manual-hook-installation)
     - [(Optional) Update Project README.md](#optional-update-project-readmemd)
-  - [Setting up Spotless](#setting-up-spotless)
-    - [Pre-requisites](#pre-requisites)
-      - [Maven Wrapper Setup](#maven-wrapper-setup)
-        - [Adding .gitattributes](#adding-gitattributes)
-    - [Basic Plugin Setup](#basic-plugin-setup)
-    - [Plugin Documentation](#plugin-documentation)
   - [Troubleshooting](#troubleshooting)
     - [How to fix "git-sh-setup: file not found" in windows](#how-to-fix-git-sh-setup-file-not-found-in-windows)
       - [Git Environment Variable Repair](#git-environment-variable-repair)
@@ -85,7 +86,7 @@ These hooks are designed to stash non-committed changes prior to commit, so that
 
 These hooks are merge-aware and won’t interfere with merge commits or rebases. Conflicting files are automatically resolved in favor of 'theirs' and re-staged after formatting.
 
-## Usage
+## Quickstart
 
 This repository should be added to another repository as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules):
 
@@ -96,134 +97,27 @@ git commit -m "Adding maven-spotless-hooks"
 
 This will add the `maven-spotless-hooks` repository as a `submodule` in the `.hooks` folder within `your project`.
 
-### Automatically Update Submodule With Maven
-
-`Submodules` are not cloned by default on a fresh clone from GitHub so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. The following is the recommended configuration (**hold off on copying this! You likely want to NOT run this in your CI/CD pipeline. Continue reading to find out how to do this**):
-
-```xml
-<project>
-  ...
-  <properties>
-    ...
-    <exec-maven-plugin.version>3.3.0</exec-maven-plugin.version>
-    ...
-  </properties>
-  ...
-  <build>
-    ...
-    <plugins>
-      ...
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>${exec-maven-plugin.version}</version>
-        <inherited>false</inherited>
-        <executions>
-          <execution>
-            <id>git submodule update</id>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <phase>initialize</phase>
-            <configuration>
-              <executable>git</executable>
-              <arguments>
-                <argument>submodule</argument>
-                <argument>update</argument>
-                <argument>--init</argument>
-                <argument>--remote</argument>
-                <argument>--force</argument>
-              </arguments>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      ...
-    </plugins>
-    ...
-  </build>
-  ...
-</project>
-```
-
-#### Executed Command
-
-The resulting command that is executed is `git submodule update --init --remote --force` which will `clone the submodule` if it does not exist, `update the submodule` to the latest commit, throw away local changes in submodules when switching to a different commit, and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
-
-#### Excluding submodule updates during CI
-
-If you are using a CI/CD pipeline, you may want to `exclude the submodule update during the CI/CD pipeline`. This can be done by adding the following configuration to the `pom.xml`:
-
-```xml
-<project>
-  ...
-  <properties>
-    ...
-    <exec-maven-plugin.version>3.3.0</exec-maven-plugin.version>
-    ...
-  </properties>
-  ...
-  <profiles>
-    <profile>
-      <id>local-development</id>
-      <activation>
-        <property>
-          <name>!env.SOME_ENV_VAR</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>${exec-maven-plugin.version}</version>
-            <inherited>false</inherited>
-            <executions>
-              <execution>
-                <id>git submodule update</id>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <phase>initialize</phase>
-                <configuration>
-                  <executable>git</executable>
-                  <arguments>
-                    <argument>submodule</argument>
-                    <argument>update</argument>
-                    <argument>--init</argument>
-                    <argument>--remote</argument>
-                    <argument>--force</argument>
-                  </arguments>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-  ...
-</project>
-```
-
-This works by checking for the absence of an environment variable `SOME_ENV_VAR` and if it is not present, the submodule update will be executed. This can be used to exclude the submodule update during the CI/CD pipeline.
-
-##### GitHub Actions
-
-If you are using GitHub Actions, you can exclude the submodule update by adding the following `env` configuration to the `.github/workflows/*.yml` file:
-
-```yaml
-env:
-  SOME_ENV_VAR: this_can_be_anything_since_we_are_checking_for_its_absence_not_its_value
-```
-
 ### Install Git Hooks
 
 Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper `git hooks`.
 
-#### Maven Hook Installation
+#### Manual Hook Installation (Not Recommended)
 
-This can be done by adding the following configuration to your application's `pom.xml`:
+You can manually install the hooks by running the following command:
+
+```sh
+# Unix/Mac
+./.hooks/install-hooks.sh
+
+# Windows (PowerShell)
+.\.hooks\install-hooks.ps1
+```
+
+> **Note**: The above commands assume you are in the root of your project that has added this repository as a submodule. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
+
+#### Automatic Maven Hook Installation
+
+It should go without saying why a manual only means of hook installation is bad. Ideally, we have the hook installation enforced automatically for us by some sort of shared mechanism. Luckily, if you are reading this, then you are using Maven, which happens to have a plugin called [git-build-hook-maven-plugin](https://github.com/rudikershaw/git-build-hook) that can install our hooks automatically. This can be done by adding the following configuration to your application's `pom.xml`:
 
 ```xml
 <project>
@@ -266,41 +160,7 @@ This can be done by adding the following configuration to your application's `po
 
 Then, anytime any developer runs any commands in Maven that target the `install` goal as part of its build lifecycle, the `git-build-hook-maven-plugin` will install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and `pre-commit` hooks automatically when you commit your code.
 
-#### Manual Hook Installation
-
-If you do not want to use the `git-build-hook-maven-plugin`, you can manually install the hooks by running the following command:
-
-```sh
-# Unix/Mac
-./.hooks/install-hooks.sh
-
-# Windows (PowerShell)
-.\.hooks\install-hooks.ps1
-```
-
-> **Note**: The above commands assume you are in the root of your project. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
-
-### (Optional) Update Project README.md
-
-Consider adding something like the following to your project's `README.md` file, replacing the Java versions with the versions you are using:
-
-````markdown
-## Setup
-
-If this is your first time opening or working on this project, you will need to run the following commands to set up the project:
-
-```sh
-./mvnw clean verify
-```
-
-This will install the necessary git hooks and update the submodule to the latest version. After performing this command at least one time, you won't need to do anything else. When you go to commit, the `spotless` formatter and pre-commit hooks will run automatically, formatting your code to the project's code style for easier PR review.
-
-### Windows Setup Caveat
-
-Windows users whose project is located within a filepath that contains a space will experience issues with Maven wrapper and should instead globally install `Maven` via `choco install maven -y` and run `mvn clean verify` instead. This typically happens due to the `C:\Users\<USERNAME>\` path containing a space (in this case `<USERNAME>` being something like `John Doe`).
-
-A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `Maven Wrapper`. Instead, move the project to a different location, such as `C:\projects\fake` or `C:\GitHub\projects\fake` and run the command again. This is a known issue with the `Maven Wrapper` and is not specific to this project.
-````
+You might be sitting there thinking, "Why would I run Maven in the terminal, I run my stuff through the IDE". Well, your CI/CD process will run Maven in the terminal, and you should be testing your code in the same way your CI/CD process will run it. This is a good practice to get into, and it will help you avoid issues when you push your code to the remote repository and end up with an easily catch-able error had you run the full test suit locally (often `mvn verify`).
 
 ## Setting up Spotless
 
@@ -310,7 +170,7 @@ A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `M
   - [Windows: Dynamic JAVA_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
 - Your project must have the `Maven Wrapper` configured
 
-#### Maven Wrapper Setup
+### Maven Wrapper Setup
 
 To add Maven wrapper to your project, run the following command:
 
@@ -324,7 +184,7 @@ You can do this in almost any IDE, since they often bundle Maven into the IDE it
 
 Despite the above warning, your IDEs built-in git process will also run these hooks. At the end of the day, these hooks simply go into your `.git/hooks/` directory and are run by git. So, if you are using IntelliJ, Eclipse, or VS Code, the hooks will run as expected. The wrapper is purely for CLI needs.
 
-##### Adding .gitattributes
+### Adding .gitattributes
 
 If your project doesn't have a `.gitattributes` file, create one in the root of your project and add the following lines:
 
@@ -341,7 +201,11 @@ If your project doesn't have a `.gitattributes` file, create one in the root of 
 
 ### Basic Plugin Setup
 
-Below is a full-fat `spotless` configuration, configuring many file types, including `Java`, `XML`, `JSON`, `YAML`, `HTML`, `Markdown`, and `SQL`. This is a recommended configuration for most projects. You can remove the sections that you do not need. It is recommended to add everything **BUT** the `java` section to start with. Get that working in your local development workflow and your CI/CD. Merge those changes to your main branch. Then, add the `java` section to the `spotless` configuration. This will allow you to get the formatting on the Java files without having to setup the overall configuration and process in one go, reducing the burden on code reviewers and limiting the blast radius of merge conflicts on your most important files; Java files.
+Below is a full-fat `spotless` configuration, configuring many file types, including `Java`, `XML`, `JSON`, `YAML`, `HTML`, `Markdown`, and `SQL`.
+
+This is a recommended `final` configuration for most projects. However, you can, and should, remove the sections that you do not need.
+
+It is recommended to add everything **BUT** the `java` section to start with. Get that working in your local development workflow and your CI/CD. Merge those changes to your main branch. Then, add the `java` section to the `spotless` configuration. This will allow you to get the formatting on the `Java` files without having to setup the overall configuration and process in one go, reducing the burden on code reviewers and limiting the blast radius of merge conflicts on your most important files; `Java` files.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -368,9 +232,7 @@ Below is a full-fat `spotless` configuration, configuring many file types, inclu
       </dependency>
     </dependencies>
   </dependencyManagement>
-  <dependencies>
-    ...
-  </dependencies>
+  ...
   <build>
     <plugins>
       <plugin>
@@ -625,9 +487,168 @@ Below is a full-fat `spotless` configuration, configuring many file types, inclu
 </project>
 ```
 
+An important callout here is that the `spotless` plugin has its `executions` block configured as follows:
+
+```xml
+<executions>
+  <execution>
+    <goals>
+      <goal>check</goal>
+    </goals>
+  </execution>
+</executions>
+```
+
+This has the side-effect of making the CI/CD run the `spotless` check, **NOT** the `apply` goal. This checks that code was formatted with `spotless` in the CI/CD, but does not apply formatting, and instead, will fail the maven build if the code is not formatted correctly. This is a good practice to get into, as it will help you catch formatting issues before they hit your main branch, and identify developers not configuring their local development environment correctly.
+
 ### Plugin Documentation
 
 To find out more information about the `spotless-maven-plugin`, please refer to the [Spotless Maven Plugin Documentation](https://github.com/diffplug/spotless/blob/main/plugin-maven/README.md). This will give you more information about the configuration options available to you. The configuration options laid out above are a full-fat recommended configuration. All of the sections might not apply to you, like the `sql` section. It is also strongly advised, if you are adding `spotless` to an existing project, to remove the `java` portion from the `spotless` configuration for a phase 1 migration. This way, you can start enforcing the `pre-commit` process and get formatting on some non-critical, non-java files. Once you are happy with the configuration, you can then add the `java` portion to the `spotless` configuration. This will allow you to get the formatting on the Java files without having to setup the overall configuration and process in one go.
+
+## Advanced Configuration
+
+### Automatically Update Submodule With Maven
+
+`Submodules` are not cloned by default on a fresh clone from GitHub so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. The following is the recommended configuration (**hold off on copying this! You likely want to NOT run this in your CI/CD pipeline. Continue reading to find out how to do this**):
+
+```xml
+<project>
+  ...
+  <properties>
+    ...
+    <exec-maven-plugin.version>3.3.0</exec-maven-plugin.version>
+    ...
+  </properties>
+  ...
+  <build>
+    ...
+    <plugins>
+      ...
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${exec-maven-plugin.version}</version>
+        <inherited>false</inherited>
+        <executions>
+          <execution>
+            <id>git submodule update</id>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <phase>initialize</phase>
+            <configuration>
+              <executable>git</executable>
+              <arguments>
+                <argument>submodule</argument>
+                <argument>update</argument>
+                <argument>--init</argument>
+                <argument>--remote</argument>
+                <argument>--force</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      ...
+    </plugins>
+    ...
+  </build>
+  ...
+</project>
+```
+
+#### Executed Command
+
+The resulting command that is executed is `git submodule update --init --remote --force` which will `clone the submodule` if it does not exist, `update the submodule` to the latest commit, throw away local changes in submodules when switching to a different commit, and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
+
+#### Excluding submodule updates during CI
+
+If you are using a CI/CD pipeline, you may want to `exclude the submodule update during the CI/CD pipeline`. This can be done by adding the following configuration to the `pom.xml`:
+
+```xml
+<project>
+  ...
+  <properties>
+    ...
+    <exec-maven-plugin.version>3.3.0</exec-maven-plugin.version>
+    ...
+  </properties>
+  ...
+  <profiles>
+    <profile>
+      <id>local-development</id>
+      <activation>
+        <property>
+          <name>!env.SOME_ENV_VAR</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${exec-maven-plugin.version}</version>
+            <inherited>false</inherited>
+            <executions>
+              <execution>
+                <id>git submodule update</id>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>initialize</phase>
+                <configuration>
+                  <executable>git</executable>
+                  <arguments>
+                    <argument>submodule</argument>
+                    <argument>update</argument>
+                    <argument>--init</argument>
+                    <argument>--remote</argument>
+                    <argument>--force</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+  ...
+</project>
+```
+
+This works by checking for the absence of an environment variable `SOME_ENV_VAR` and if it is not present, the submodule update will be executed. This can be used to exclude the submodule update during the CI/CD pipeline.
+
+##### GitHub Actions
+
+If you are using GitHub Actions, you can exclude the submodule update by adding the following `env` configuration to the `.github/workflows/*.yml` file:
+
+```yaml
+env:
+  SOME_ENV_VAR: this_can_be_anything_since_we_are_checking_for_its_absence_not_its_value
+```
+
+### (Optional) Update Project README.md
+
+Consider adding something like the following to your project's `README.md` file, replacing the Java versions with the versions you are using:
+
+````markdown
+## Setup
+
+If this is your first time opening or working on this project, you will need to run the following commands to set up the project:
+
+```sh
+./mvnw clean verify
+```
+
+This will install the necessary git hooks and update the submodule to the latest version. After performing this command at least one time, you won't need to do anything else. When you go to commit, the `spotless` formatter and pre-commit hooks will run automatically, formatting your code to the project's code style for easier PR review.
+
+### Windows Setup Caveat
+
+Windows users whose project is located within a filepath that contains a space will experience issues with Maven wrapper and should instead globally install `Maven` via `choco install maven -y` and run `mvn clean verify` instead. This typically happens due to the `C:\Users\<USERNAME>\` path containing a space (in this case `<USERNAME>` being something like `John Doe`).
+
+A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `Maven Wrapper`. Instead, move the project to a different location, such as `C:\projects\fake` or `C:\GitHub\projects\fake` and run the command again. This is a known issue with the `Maven Wrapper` and is not specific to this project.
+````
 
 ## Troubleshooting
 
