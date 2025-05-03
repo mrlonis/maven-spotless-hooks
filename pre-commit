@@ -112,10 +112,7 @@ spotlessApply
 SPOTLESS_APPLY_RESULT=$?
 # Re-stage updated files from spotless:apply
 git add -u
-git stash pop -q || {
-  echo "[git pre-commit hook] - Failed to re-apply stashed changes. Aborting."
-  exit 1
-}
+git stash pop -q
 handleMergeConflicts
 handleEmptyCommitAtEnd
 exit $SPOTLESS_APPLY_RESULT
