@@ -215,8 +215,8 @@ bundled Maven when in the IDE, but we need the Maven Wrapper to perform `pre-com
 
 > You can keep using your IDE’s Maven integration for builds and testing, but pre-commit hooks must run through the
 > Maven Wrapper (`./mvnw`) to ensure consistency across environments. Additionally, for users who do **not** have Maven
-> installed, the wrapper will download the correct version of Maven for them. Otherwise, this `pre-commit` process would 
-> **force** all developers to install yet another tool on their local machine. This is not ideal, and we want to avoid 
+> installed, the wrapper will download the correct version of Maven for them. Otherwise, this `pre-commit` process would
+> **force** all developers to install yet another tool on their local machine. This is not ideal, and we want to avoid
 > that if possible.
 
 Despite the above warning, your IDEs built-in git process will also run these hooks. At the end of the day, these hooks
