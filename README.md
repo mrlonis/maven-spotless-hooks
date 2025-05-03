@@ -210,6 +210,18 @@ It is recommended to add everything **BUT** the `java` section to start with. Ge
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.7.18</version>
+    <relativePath/>
+  </parent>
+  <groupId>com.fake.example</groupId>
+  <artifactId>example-spring-boot-maven-app</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>example-spring-boot-maven-app</name>
+  <description>Example project for Spring Boot 2.7.18 with Java 11</description>
   <properties>
     <cleanthat.version>2.20</cleanthat.version>
     <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
