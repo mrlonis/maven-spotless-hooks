@@ -51,13 +51,19 @@ PRs welcome! Please open an issue first for discussion.
 
 There really isn’t a strong alternative.
 
-Spotless is one of the very few formatting tools that works seamlessly with both Maven and Gradle, and can be integrated into Java projects without requiring new tooling ecosystems or language server configuration. It handles multi-format linting, supports widely accepted formatting styles (like Palantir Java Format), and is extremely customizable—yet doesn't get in your way.
+Spotless is one of the very few formatting tools that works seamlessly with both Maven and Gradle, and can be integrated
+into Java projects without requiring new tooling ecosystems or language server configuration. It handles multi-format
+linting, supports widely accepted formatting styles (like Palantir Java Format), and is extremely customizable—yet
+doesn't get in your way.
 
-If you’re coming from a frontend or Python world, tools like `prettier`, `black`, or `eslint` offer tight `pre-commit` integration out of the box. In the `Java` ecosystem, that level of integration is oddly lacking. `Spotless` fills that gap with the added benefit of being language-agnostic across file types.
+If you’re coming from a frontend or Python world, tools like `prettier`, `black`, or `eslint` offer tight `pre-commit`
+integration out of the box. In the `Java` ecosystem, that level of integration is oddly lacking. `Spotless` fills that
+gap with the added benefit of being language-agnostic across file types.
 
 ### What These Hooks Do
 
-This repo provides Git pre-commit and post-commit hooks that automatically run Spotless on files you've changed. This ensures consistent formatting and reduces noisy diffs before commits ever hit your branch.
+This repo provides Git pre-commit and post-commit hooks that automatically run Spotless on files you've changed. This
+ensures consistent formatting and reduces noisy diffs before commits ever hit your branch.
 
 ### Included Hooks
 
@@ -80,15 +86,20 @@ commit allowed or blocked
 
 ### Conflict Resolution
 
-These hooks are designed to stash non-committed changes prior to commit, so that when `spotless` is run, it can apply the formatting to only the files being changed. After un-stashing, if there are conflicts, we will resolve them, re-run `spotless`, and re-commit the changes. This is done to ensure that the commit is always in a clean state, and that `spotless` has been applied before committing.
+These hooks are designed to stash non-committed changes prior to commit, so that when `spotless` is run, it can apply
+the formatting to only the files being changed. After un-stashing, if there are conflicts, we will resolve them, re-run
+`spotless`, and re-commit the changes. This is done to ensure that the commit is always in a clean state, and that
+`spotless` has been applied before committing.
 
 ### Hook Behavior During Merge/Rebase
 
-These hooks are merge-aware and won’t interfere with merge commits or rebases. Conflicting files are automatically resolved in favor of 'theirs' and re-staged after formatting.
+These hooks are merge-aware and won’t interfere with merge commits or rebases. Conflicting files are automatically
+resolved in favor of 'theirs' and re-staged after formatting.
 
 ## Quickstart
 
-This repository should be added to another repository as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules):
+This repository should be added to another repository as
+a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules):
 
 ```sh
 git submodule add -b main https://github.com/mrlonis/maven-spotless-hooks.git .hooks/
@@ -99,7 +110,8 @@ This will add the `maven-spotless-hooks` repository as a `submodule` in the `.ho
 
 ### Install Git Hooks
 
-Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper `git hooks`.
+Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper
+`git hooks`.
 
 #### Manual Hook Installation (Not Recommended)
 
@@ -113,25 +125,40 @@ You can manually install the hooks by running the following command:
 .\.hooks\install-hooks.ps1
 ```
 
-> **Note**: The above commands assume you are in the root of your project that has added this repository as a submodule. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
+> **Note**: The above commands assume you are in the root of your project that has added this repository as a submodule.
+> If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
 
 #### Automatic Maven Hook Installation
 
-It should go without saying why a manual only means of hook installation is bad. Ideally, we have the hook installation enforced automatically for us by some sort of shared mechanism. Luckily, if you are reading this, then you are using Maven, which happens to have a plugin called [git-build-hook-maven-plugin](https://github.com/rudikershaw/git-build-hook) that can install our hooks automatically. This can be done by adding the following configuration to your application's `pom.xml`:
+It should go without saying why a manual only means of hook installation is bad. Ideally, we have the hook installation
+enforced automatically for us by some sort of shared mechanism. Luckily, if you are reading this, then you are using
+Maven, which happens to have a plugin
+called [git-build-hook-maven-plugin](https://github.com/rudikershaw/git-build-hook) that can install our hooks
+automatically. This can be done by adding the following configuration to your application's `pom.xml`:
 
 ```xml
-<project>
-  ...
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.7.18</version>
+    <relativePath/>
+  </parent>
+  <groupId>com.fake.example</groupId>
+  <artifactId>example-spring-boot-maven-app</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>example-spring-boot-maven-app</name>
+  <description>Example project for Spring Boot 2.7.18 with Java 11</description>
   <properties>
-    ...
     <git-build-hook-maven-plugin.version>3.5.0</git-build-hook-maven-plugin.version>
     ...
   </properties>
   ...
   <build>
-    ...
     <plugins>
-      ...
       <plugin>
         <groupId>com.rudikershaw.gitbuildhook</groupId>
         <artifactId>git-build-hook-maven-plugin</artifactId>
@@ -152,15 +179,20 @@ It should go without saying why a manual only means of hook installation is bad.
       </plugin>
       ...
     </plugins>
-    ...
   </build>
-  ...
 </project>
 ```
 
-Then, anytime any developer runs any commands in Maven that target the `install` goal as part of its build lifecycle, the `git-build-hook-maven-plugin` will install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and `pre-commit` hooks automatically when you commit your code.
+Then, anytime any developer runs any commands in Maven that target the `install` goal as part of its build lifecycle,
+the `git-build-hook-maven-plugin` will install the `pre-commit` and `post-commit` hooks into the `.git/hooks/`
+directory. This will allow you to run the `spotless` formatter and `pre-commit` hooks automatically when you commit your
+code.
 
-You might be sitting there thinking, "Why would I run Maven in the terminal, I run my stuff through the IDE". Well, your CI/CD process will run Maven in the terminal, and you should be testing your code in the same way your CI/CD process will run it. This is a good practice to get into, and it will help you avoid issues when you push your code to the remote repository and end up with an easily catch-able error had you run the full test suit locally (often `mvn verify`).
+You might be sitting there thinking, "Why would I run Maven in the terminal, I run my stuff through the IDE". Well, your
+CI/CD process will run Maven in the terminal, and you should be testing your code in the same way your CI/CD process
+will run it. This is a good practice to get into, and it will help you avoid issues when you push your code to the
+remote repository and end up with an easily catch-able error had you run the full test suit locally (often
+`mvn verify`).
 
 ## Setting up Spotless
 
@@ -178,15 +210,23 @@ To add Maven wrapper to your project, run the following command:
 mvn wrapper:wrapper -Dmaven=3.8.8
 ```
 
-You can do this in almost any IDE, since they often bundle Maven into the IDE itself. It is fine to continue using the bundled Maven when in the IDE, but we need the Maven Wrapper to perform `pre-commit` commands.
+You can do this in almost any IDE, since they often bundle Maven into the IDE itself. It is fine to continue using the
+bundled Maven when in the IDE, but we need the Maven Wrapper to perform `pre-commit` commands.
 
-> You can keep using your IDE’s Maven integration for builds and testing, but pre-commit hooks must run through the Maven Wrapper (`./mvnw`) to ensure consistency across environments. Additionally, for users who do **not** have Maven installed, the wrapper will download the correct version of Maven for them. Otherwise, this `pre-commit` process would **force** all developers to install yet another tool on their local machine. This is not ideal, and we want to avoid that if possible.
+> You can keep using your IDE’s Maven integration for builds and testing, but pre-commit hooks must run through the
+> Maven Wrapper (`./mvnw`) to ensure consistency across environments. Additionally, for users who do **not** have Maven
+> installed, the wrapper will download the correct version of Maven for them. Otherwise, this `pre-commit` process would 
+> **force** all developers to install yet another tool on their local machine. This is not ideal, and we want to avoid 
+> that if possible.
 
-Despite the above warning, your IDEs built-in git process will also run these hooks. At the end of the day, these hooks simply go into your `.git/hooks/` directory and are run by git. So, if you are using IntelliJ, Eclipse, or VS Code, the hooks will run as expected. The wrapper is purely for CLI needs.
+Despite the above warning, your IDEs built-in git process will also run these hooks. At the end of the day, these hooks
+simply go into your `.git/hooks/` directory and are run by git. So, if you are using IntelliJ, Eclipse, or VS Code, the
+hooks will run as expected. The wrapper is purely for CLI needs.
 
 ### Adding .gitattributes
 
-If your project doesn't have a `.gitattributes` file, create one in the root of your project and add the following lines:
+If your project doesn't have a `.gitattributes` file, create one in the root of your project and add the following
+lines:
 
 ```gitattributes
 /mvnw text eol=lf
@@ -197,19 +237,28 @@ If your project doesn't have a `.gitattributes` file, create one in the root of 
 * text=auto
 ```
 
-> This is **NOT** optional. Failure to do this, and messing up the line endings for `*.cmd` or the `mvnw` script files will cause issues with users on Windows and Mac. Mac cannot run `mvnw` if the line endings are `crlf`, and Windows cannot run `*.cmd*` if the line endings are not `crlf`.
+> This is **NOT** optional. Failure to do this, and messing up the line endings for `*.cmd` or the `mvnw` script files
+> will cause issues with users on Windows and Mac. Mac cannot run `mvnw` if the line endings are `crlf`, and Windows
+> cannot run `*.cmd*` if the line endings are not `crlf`.
 
 ### Basic Plugin Setup
 
-Below is a full-fat `spotless` configuration, configuring many file types, including `Java`, `XML`, `JSON`, `YAML`, `HTML`, `Markdown`, and `SQL`.
+Below is a full-fat `spotless` configuration, configuring many file types, including `Java`, `XML`, `JSON`, `YAML`,
+`HTML`, `Markdown`, and `SQL`.
 
-This is a recommended `final` configuration for most projects. However, you can, and should, remove the sections that you do not need.
+This is a recommended `final` configuration for most projects. However, you can, and should, remove the sections that
+you do not need.
 
-It is recommended to add everything **BUT** the `java` section to start with. Get that working in your local development workflow and your CI/CD. Merge those changes to your main branch. Then, add the `java` section to the `spotless` configuration. This will allow you to get the formatting on the `Java` files without having to setup the overall configuration and process in one go, reducing the burden on code reviewers and limiting the blast radius of merge conflicts on your most important files; `Java` files.
+It is recommended to add everything **BUT** the `java` section to start with. Get that working in your local development
+workflow and your CI/CD. Merge those changes to your main branch. Then, add the `java` section to the `spotless`
+configuration. This will allow you to get the formatting on the `Java` files without having to setup the overall
+configuration and process in one go, reducing the burden on code reviewers and limiting the blast radius of merge
+conflicts on your most important files; `Java` files.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.springframework.boot</groupId>
@@ -511,31 +560,54 @@ An important callout here is that the `spotless` plugin has its `executions` blo
 </executions>
 ```
 
-This has the side-effect of making the CI/CD run the `spotless` check, **NOT** the `apply` goal. This checks that code was formatted with `spotless` in the CI/CD, but does not apply formatting, and instead, will fail the maven build if the code is not formatted correctly. This is a good practice to get into, as it will help you catch formatting issues before they hit your main branch, and identify developers not configuring their local development environment correctly.
+This has the side effect of making the CI/CD run the `spotless` check, **NOT** the `apply` goal. This checks that code
+was formatted with `spotless` in the CI/CD, but does not apply formatting, and instead, will fail the maven build if the
+code is not formatted correctly. This is a good practice to get into, as it will help you catch formatting issues before
+they hit your main branch, and identify developers not configuring their local development environment correctly.
 
 ### Plugin Documentation
 
-To find out more information about the `spotless-maven-plugin`, please refer to the [Spotless Maven Plugin Documentation](https://github.com/diffplug/spotless/blob/main/plugin-maven/README.md). This will give you more information about the configuration options available to you. The configuration options laid out above are a full-fat recommended configuration. All of the sections might not apply to you, like the `sql` section. It is also strongly advised, if you are adding `spotless` to an existing project, to remove the `java` portion from the `spotless` configuration for a phase 1 migration. This way, you can start enforcing the `pre-commit` process and get formatting on some non-critical, non-java files. Once you are happy with the configuration, you can then add the `java` portion to the `spotless` configuration. This will allow you to get the formatting on the Java files without having to setup the overall configuration and process in one go.
+To find out more information about the `spotless-maven-plugin`, please refer to
+the [Spotless Maven Plugin Documentation](https://github.com/diffplug/spotless/blob/main/plugin-maven/README.md). This
+will give you more information about the configuration options available to you. The configuration options laid out
+above are a full-fat recommended configuration. All the sections might not apply to you, like the `sql` section. It
+is also strongly advised, if you are adding `spotless` to an existing project, to remove the `java` portion from the
+`spotless` configuration for a phase 1 migration. This way, you can start enforcing the `pre-commit` process and get
+formatting on some non-critical, non-java files. Once you are happy with the configuration, you can then add the `java`
+portion to the `spotless` configuration. This will allow you to get the formatting on the Java files without having to
+set up the overall configuration and process in one go.
 
 ## Advanced Configuration
 
 ### Automatically Update Submodule With Maven
 
-`Submodules` are not cloned by default on a fresh clone from GitHub so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. The following is the recommended configuration (**hold off on copying this! You likely want to NOT run this in your CI/CD pipeline. Continue reading to find out how to do this**):
+`Submodules` are not cloned by default on a fresh clone from GitHub so we need to add a plugin to our Maven root
+`pom.xml` to clone the submodule. The following is the recommended configuration (**hold off on copying this! You likely
+want to NOT run this in your CI/CD pipeline. Continue reading to find out how to do this**):
 
 ```xml
-<project>
-  ...
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.7.18</version>
+    <relativePath/>
+  </parent>
+  <groupId>com.fake.example</groupId>
+  <artifactId>example-spring-boot-maven-app</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>example-spring-boot-maven-app</name>
+  <description>Example project for Spring Boot 2.7.18 with Java 11</description>
   <properties>
-    ...
     <exec-maven-plugin.version>3.3.0</exec-maven-plugin.version>
     ...
   </properties>
   ...
   <build>
-    ...
     <plugins>
-      ...
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
@@ -563,25 +635,39 @@ To find out more information about the `spotless-maven-plugin`, please refer to 
       </plugin>
       ...
     </plugins>
-    ...
   </build>
-  ...
 </project>
 ```
 
 #### Executed Command
 
-The resulting command that is executed is `git submodule update --init --remote --force` which will `clone the submodule` if it does not exist, `update the submodule` to the latest commit, throw away local changes in submodules when switching to a different commit, and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
+The resulting command that is executed is `git submodule update --init --remote --force` which will
+`clone the submodule` if it does not exist, `update the submodule` to the latest commit, throw away local changes in
+submodules when switching to a different commit, and always run a checkout operation in the submodule, even if the
+commit listed in the index of the containing repository matches the commit checked out in the submodule.
 
 #### Excluding submodule updates during CI
 
-If you are using a CI/CD pipeline, you may want to `exclude the submodule update during the CI/CD pipeline`. This can be done by adding the following configuration to the `pom.xml`:
+If you are using a CI/CD pipeline, you may want to `exclude the submodule update during the CI/CD pipeline`. This can be
+done by adding the following configuration to the `pom.xml`:
 
 ```xml
-<project>
-  ...
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.7.18</version>
+    <relativePath/>
+  </parent>
+  <groupId>com.fake.example</groupId>
+  <artifactId>example-spring-boot-maven-app</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>example-spring-boot-maven-app</name>
+  <description>Example project for Spring Boot 2.7.18 with Java 11</description>
   <properties>
-    ...
     <exec-maven-plugin.version>3.3.0</exec-maven-plugin.version>
     ...
   </properties>
@@ -624,16 +710,18 @@ If you are using a CI/CD pipeline, you may want to `exclude the submodule update
         </plugins>
       </build>
     </profile>
+    ...
   </profiles>
-  ...
 </project>
 ```
 
-This works by checking for the absence of an environment variable `SOME_ENV_VAR` and if it is not present, the submodule update will be executed. This can be used to exclude the submodule update during the CI/CD pipeline.
+This works by checking for the absence of an environment variable `SOME_ENV_VAR` and if it is not present, the submodule
+update will be executed. This can be used to exclude the submodule update during the CI/CD pipeline.
 
 ##### GitHub Actions
 
-If you are using GitHub Actions, you can exclude the submodule update by adding the following `env` configuration to the `.github/workflows/*.yml` file:
+If you are using GitHub Actions, you can exclude the submodule update by adding the following `env` configuration to the
+`.github/workflows/*.yml` file:
 
 ```yaml
 env:
@@ -642,37 +730,48 @@ env:
 
 ### (Optional) Update Project README.md
 
-Consider adding something like the following to your project's `README.md` file, replacing the Java versions with the versions you are using:
+Consider adding something like the following to your project's `README.md` file, replacing the Java versions with the
+versions you are using:
 
 ````markdown
 ## Setup
 
-If this is your first time opening or working on this project, you will need to run the following commands to set up the project:
+If this is your first time opening or working on this project, you will need to run the following commands to set up the
+project:
 
 ```sh
 ./mvnw clean verify
 ```
 
-This will install the necessary git hooks and update the submodule to the latest version. After performing this command at least one time, you won't need to do anything else. When you go to commit, the `spotless` formatter and pre-commit hooks will run automatically, formatting your code to the project's code style for easier PR review.
+This will install the necessary git hooks and update the submodule to the latest version. After performing this command
+at least one time, you won't need to do anything else. When you go to commit, the `spotless` formatter and pre-commit
+hooks will run automatically, formatting your code to the project's code style for easier PR review.
 
 ### Windows Setup Caveat
 
-Windows users whose project is located within a filepath that contains a space will experience issues with Maven wrapper and should instead globally install `Maven` via `choco install maven -y` and run `mvn clean verify` instead. This typically happens due to the `C:\Users\<USERNAME>\` path containing a space (in this case `<USERNAME>` being something like `John Doe`).
+Windows users whose project is located within a filepath that contains a space will experience issues with Maven wrapper
+and should instead globally install `Maven` via `choco install maven -y` and run `mvn clean verify` instead. This
+typically happens due to the `C:\Users\<USERNAME>\` path containing a space (in this case `<USERNAME>` being something
+like `John Doe`).
 
-A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `Maven Wrapper`. Instead, move the project to a different location, such as `C:\projects\fake` or `C:\GitHub\projects\fake` and run the command again. This is a known issue with the `Maven Wrapper` and is not specific to this project.
+A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `Maven Wrapper`. Instead, move the project
+to a different location, such as `C:\projects\fake` or `C:\GitHub\projects\fake` and run the command again. This is a
+known issue with the `Maven Wrapper` and is not specific to this project.
 ````
 
 ## Troubleshooting
 
 ### How to fix "git-sh-setup: file not found" in windows
 
-For starters, make sure you have the latest version of `git` installed. If you are using `choco`, you can run the following command to update `git`:
+For starters, make sure you have the latest version of `git` installed. If you are using `choco`, you can run the
+following command to update `git`:
 
 ```sh
 choco upgrade git -y
 ```
 
-and if you don't use `choco` to manage `git`, you can download the latest version of `git` from the [Git for Windows](https://gitforwindows.org/) website.
+and if you don't use `choco` to manage `git`, you can download the latest version of `git` from
+the [Git for Windows](https://gitforwindows.org/) website.
 
 #### Git Environment Variable Repair
 
@@ -684,14 +783,30 @@ and if you don't use `choco` to manage `git`, you can download the latest versio
 4. In the `Edit Environment Variable` window, click on `New` and add the following paths:
    - `C:\Program Files\Git\usr\bin`
    - `C:\Program Files\Git\mingw64\libexec\git-core`
-5. These will be added to the end of the list. Click on each one, and then click on `Move Up` until they are at the top of the list
+5. These will be added to the end of the list. Click on each one, and then click on `Move Up` until they are at the top
+   of the list
 
 ### Disabling Spotless
 
-If you ever need or want to disable `spotless`, we can do so by specifying a Maven profile. This can be done by adding the following profile configuration to the `pom.xml`:
+If you ever need or want to disable `spotless`, we can do so by specifying a Maven profile. This can be done by adding
+the following profile configuration to the `pom.xml`:
 
 ```xml
-<project>
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.7.18</version>
+    <relativePath/>
+  </parent>
+  <groupId>com.fake.example</groupId>
+  <artifactId>example-spring-boot-maven-app</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>example-spring-boot-maven-app</name>
+  <description>Example project for Spring Boot 2.7.18 with Java 11</description>
   ...
   <profiles>
     <profile>
@@ -713,11 +828,11 @@ If you ever need or want to disable `spotless`, we can do so by specifying a Mav
     </profile>
     ...
   </profiles>
-  ...
 </project>
 ```
 
-This will setup a profile called `github` that will disable the `spotless` plugin. You can then run the following command to disable `spotless`:
+This will set up a profile called `github` that will disable the `spotless` plugin. You can then run the following
+command to disable `spotless`:
 
 ```sh
 mvn clean verify -P github
@@ -725,7 +840,8 @@ mvn clean verify -P github
 
 #### Use Cases
 
-This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted me with projects that are strictly JAR releases instead of full Spring Boot applications that get deployed out.
+This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted me with projects that
+are strictly JAR releases instead of full Spring Boot applications that get deployed out.
 
 #### Bamboo Example
 
@@ -788,9 +904,12 @@ code $profile
 
 ##### Profile Content
 
-Below is the content of the PowerShell profile. This profile will give you dynamic functions, aptly named `java8`, `java11`, `java17`, and `java21` to set the JAVA_HOME environment variable to the correct version of Java. You can then run these functions in PowerShell to switch between Java versions at will in the CLI.
+Below is the content of the PowerShell profile. This profile will give you dynamic functions, aptly named `java8`,
+`java11`, `java17`, and `java21` to set the JAVA_HOME environment variable to the correct version of Java. You can then
+run these functions in PowerShell to switch between Java versions at will in the CLI.
 
-> **Note**: This **ONLY** works in an `Administrator PowerShell` session. This is a Windows security limitation. Standard user shells cannot persist environment variables machine-wide.
+> **Note**: This **ONLY** works in an `Administrator PowerShell` session. This is a Windows security limitation.
+> Standard user shells cannot persist environment variables machine-wide.
 
 ```powershell
 $global:JAVA_8_PATH = 'C:\Program Files\Eclipse Adoptium\jdk-8.0.442.6-hotspot' # Replace with your correct version
