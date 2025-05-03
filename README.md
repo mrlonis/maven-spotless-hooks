@@ -35,7 +35,7 @@ These hooks are Git-native and IDE-agnostic. You do not need to configure anythi
       - [Use Cases](#use-cases)
       - [Bamboo Example](#bamboo-example)
       - [GitHub Actions Example](#github-actions-example)
-    - [Windows: Dynamic JAVA\_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
+    - [Windows: Dynamic JAVA_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
       - [PowerShell Profile](#powershell-profile)
         - [Notepad](#notepad)
         - [VS Code](#vs-code)
@@ -272,7 +272,7 @@ If you do not want to use the `git-build-hook-maven-plugin`, you can manually in
 
 ```sh
 # Unix/Mac
-sh .hooks/install-hooks.sh
+./.hooks/install-hooks.sh
 
 # Windows (PowerShell)
 .\.hooks\install-hooks.ps1
