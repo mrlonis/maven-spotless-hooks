@@ -65,19 +65,15 @@ handleMergeConflicts() {
       fi
       git add "$conflictedFile"
       logGitInfo
-
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-        echo "[git pre-commit hook - $conflictedFile] - Running spotless:apply"
-      fi
-      spotlessApply
-
-      logGitInfo
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-        echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to the staging area"
-      fi
-      git add "$conflictedFile"
-      logGitInfo
     done
+
+    if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
+      echo "[git pre-commit hook] - Re-running spotless:apply after conflict resolution"
+    fi
+    spotlessApply
+    # Stage all files after re-applying formatting to resolved conflicts
+    git add -u
+    logGitInfo
   fi
 }
 
