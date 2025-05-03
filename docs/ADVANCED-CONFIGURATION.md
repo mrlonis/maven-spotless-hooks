@@ -2,10 +2,10 @@
 
 This guide covers optional but powerful Spotless hook extensions for teams operating in CI/CD environments, cross-platform setups, or larger codebases.
 
-## Table of Contents
+## 📑 Table of Contents
 
 - [Advanced Configuration](#advanced-configuration)
-  - [Table of Contents](#table-of-contents)
+  - [📑 Table of Contents](#-table-of-contents)
   - [Automatically Update Submodule With Maven](#automatically-update-submodule-with-maven)
     - [Executed Command](#executed-command)
     - [Excluding submodule updates during CI](#excluding-submodule-updates-during-ci)

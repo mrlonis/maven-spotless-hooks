@@ -2,25 +2,26 @@
 
 These hooks are Git-native and IDE-agnostic. You do not need to configure anything inside IntelliJ, Eclipse, or VS Code.
 
-## Table of Contents
+## 📑 Table of Contents
 
 - [maven-spotless-hooks](#maven-spotless-hooks)
-  - [Table of Contents](#table-of-contents)
-  - [Quickstart](#quickstart)
+  - [📑 Table of Contents](#-table-of-contents)
+  - [🚀 Quickstart](#-quickstart)
     - [Installing the Git Hooks](#installing-the-git-hooks)
       - [Manual Hook Installation (Not Recommended)](#manual-hook-installation-not-recommended)
       - [Automatic Maven Hook Installation](#automatic-maven-hook-installation)
-  - [Contributing](#contributing)
-  - [What These Hooks Do](#what-these-hooks-do)
-  - [Included Hooks](#included-hooks)
-  - [Flow Chart](#flow-chart)
+  - [📚 Additional Documentation](#-additional-documentation)
+  - [🤝 Contributing](#-contributing)
+  - [🧩 What These Hooks Do](#-what-these-hooks-do)
+  - [🪝 Included Hooks](#-included-hooks)
+  - [🗺️ Flow Chart](#️-flow-chart)
     - [Conflict Resolution](#conflict-resolution)
     - [Hook Behavior During Merge/Rebase](#hook-behavior-during-mergerebase)
-  - [Setting up Spotless](#setting-up-spotless)
-  - [Advanced Configuration](#advanced-configuration)
-  - [Troubleshooting](#troubleshooting)
+  - [🛠️ Setting up Spotless](#️-setting-up-spotless)
+  - [🛠️ Advanced Configuration](#️-advanced-configuration)
+  - [🧯 Troubleshooting](#-troubleshooting)
 
-## Quickstart
+## 🚀 Quickstart
 
 This repository should be added to another repository as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules). Assuming you have `spotless` already set up in your project, you can add this repository as a submodule and manually install the hooks by running the following command in the root of your project:
 
@@ -85,20 +86,26 @@ Then, anytime any developer runs any commands in Maven that target the `install`
 
 You might be sitting there thinking, "Why would I run Maven in the terminal, I run my stuff through the IDE". Well, your CI/CD process will run Maven in the terminal, and you should be testing your code in the same way your CI/CD process will run it. This is a good practice to get into, and it will help you avoid issues when you push your code to the remote repository and end up with an easily catch-able error had you run the full test suit locally (often `mvn verify`).
 
-## Contributing
+## 📚 Additional Documentation
+
+- [Spotless Configuration](./docs/SPOTLESS-CONFIG.md)
+- [Advanced Configuration](./docs/ADVANCED-CONFIGURATION.md)
+- [Troubleshooting Guide](./docs/TROUBLESHOOTING.md)
+
+## 🤝 Contributing
 
 PRs welcome! Please open an issue first for discussion.
 
-## What These Hooks Do
+## 🧩 What These Hooks Do
 
 This repo provides Git `pre-commit` and `post-commit` hooks that automatically run `Spotless` on files you've changed. This ensures consistent formatting and reduces noisy diffs before commits ever hit GitHub for PR Review.
 
-## Included Hooks
+## 🪝 Included Hooks
 
 - `pre-commit`: Applies `Spotless` to staged files before commit
 - `post-commit`: Re-runs `Spotless` after commit to handle missed diffs
 
-## Flow Chart
+## 🗺️ Flow Chart
 
 ```pqsql
 git commit
@@ -124,14 +131,14 @@ These hooks are designed to stash non-committed changes prior to commit, so that
 
 These hooks are merge-aware and won’t interfere with merge commits or rebases. Conflicting files are automatically resolved in favor of 'theirs' and re-staged after formatting.
 
-## Setting up Spotless
+## 🛠️ Setting up Spotless
 
 For more information on how to set up `spotless`, please refer to [SPOTLESS-CONFIG.md](./docs/SPOTLESS-CONFIG.md).
 
-## Advanced Configuration
+## 🛠️ Advanced Configuration
 
 For more advanced configuration information, such as how to automatically update the submodule with Maven, exclude submodule updates during CI, or a sample `README.md` change to make to your project, please refer to [ADVANCED-CONFIGURATION.md](./docs/ADVANCED-CONFIGURATION.md).
 
-## Troubleshooting
+## 🧯 Troubleshooting
 
 For troubleshooting, please refer to [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).

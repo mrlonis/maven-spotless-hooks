@@ -1,9 +1,9 @@
 # Troubleshooting
 
-## Table of Contents
+## 📑 Table of Contents
 
 - [Troubleshooting](#troubleshooting)
-  - [Table of Contents](#table-of-contents)
+  - [📑 Table of Contents](#-table-of-contents)
   - [How to fix "git-sh-setup: file not found" in windows](#how-to-fix-git-sh-setup-file-not-found-in-windows)
     - [Git Environment Variable Repair](#git-environment-variable-repair)
   - [Disabling Spotless](#disabling-spotless)

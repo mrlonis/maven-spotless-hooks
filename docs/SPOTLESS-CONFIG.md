@@ -1,10 +1,24 @@
 # Spotless Configuration
 
-## Table of Contents
+## 📑 Table of Contents
 
 - [Spotless Configuration](#spotless-configuration)
-  - [Table of Contents](#table-of-contents)
+  - [📑 Table of Contents](#-table-of-contents)
   - [Why Spotless?](#why-spotless)
+  - [Setting up Spotless](#setting-up-spotless)
+    - [Pre-requisites](#pre-requisites)
+    - [Maven Wrapper Setup](#maven-wrapper-setup)
+    - [Adding .gitattributes](#adding-gitattributes)
+    - [Basic Plugin Setup](#basic-plugin-setup)
+      - [Plugin Skeleton](#plugin-skeleton)
+      - ["Formats" Configuration (Non-Code Files and Prettier)](#formats-configuration-non-code-files-and-prettier)
+        - [Non-Code Files (Still Important!)](#non-code-files-still-important)
+        - [Prettier (JSON, HTML, YAML, XML) Configuration](#prettier-json-html-yaml-xml-configuration)
+      - [Java Configuration](#java-configuration)
+      - [Pom.xml Configuration](#pomxml-configuration)
+      - [Markdown Configuration](#markdown-configuration)
+      - [SQL (Surprise its prettier!) Configuration](#sql-surprise-its-prettier-configuration)
+    - [Plugin Documentation](#plugin-documentation)
 
 ## Why Spotless?
 
