@@ -339,3 +339,5 @@ This is important because it not only enforces some minor trimming of whitespace
 ### Plugin Documentation
 
 To find out more information about the `spotless-maven-plugin`, please refer to the [Spotless Maven Plugin Documentation](https://github.com/diffplug/spotless/blob/main/plugin-maven/README.md). This will give you more information about the configuration options available to you. The configuration options laid out above are a full-fat recommended configuration. All the sections might not apply to you, like the `sql` section. It is also strongly advised, if you are adding `spotless` to an existing project, to remove the `java` portion from the `spotless` configuration for a phase 1 migration. This way, you can start enforcing the `pre-commit` process and get formatting on some non-critical, non-java files. Once you are happy with the configuration, you can then add the `java` portion to the `spotless` configuration. This will allow you to get the formatting on the Java files without having to set up the overall configuration and process in one go.
+
+← Back to [README.md](./README.md)

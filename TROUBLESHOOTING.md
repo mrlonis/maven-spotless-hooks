@@ -10,7 +10,7 @@
     - [Use Cases](#use-cases)
     - [Bamboo Example](#bamboo-example)
     - [GitHub Actions Example](#github-actions-example)
-  - [Windows: Dynamic JAVA_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
+  - [Windows: Dynamic JAVA\_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
     - [PowerShell Profile](#powershell-profile)
       - [Profile Content](#profile-content)
   - [Debugging These Scripts](#debugging-these-scripts)
@@ -163,3 +163,5 @@ function java21 {
 ## Debugging These Scripts
 
 To debug these scripts, simply set the `MAVEN_SPOTLESS_HOOKS_DEBUG` environment variable to `1`.
+
+← Back to [README.md](./README.md)
