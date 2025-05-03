@@ -69,11 +69,7 @@ handleMergeConflicts() {
       if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Running spotless:apply"
       fi
-      if command -v mvn >/dev/null 2>&1; then
-        mvn spotless:apply -DspotlessFiles=".*$conflictedFile" -q
-      else
-        ./mvnw spotless:apply -DspotlessFiles=".*$conflictedFile" -q
-      fi
+      spotlessApply
 
       logGitInfo
       if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
