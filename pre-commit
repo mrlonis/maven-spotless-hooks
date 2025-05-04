@@ -53,21 +53,22 @@ handleMergeConflicts() {
         echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
       fi
       # In a conflict, prefer the incoming (theirs) version
-      git checkout --theirs "$(pwd)/$conflictedFile"
+      git checkout --theirs "$conflictedFile"
       logGitInfo
       if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
       fi
       # Unstage the file to prevent it from being committed, let Spotless format it first
-      git restore --staged "$(pwd)/$conflictedFile"
+      git restore --staged "$$conflictedFile"
       logGitInfo
     done
 
     if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
       echo "[git pre-commit hook] - Re-running spotless:apply after conflict resolution"
     fi
+    # Re-run spotless:apply to format the files after resolving conflicts
     spotlessApply
-    # Stage all files after re-applying formatting to resolved conflicts
+    # Stage all Stage all modified and deleted files, but do NOT include new untracked files, after spotless
     git add -u
     logGitInfo
   fi
