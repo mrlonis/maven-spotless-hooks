@@ -1,23 +1,23 @@
-# maven-spotless-hooks
+# 🧼☕🪝 maven-spotless-hooks
 
 These hooks are Git-native and IDE-agnostic. You do not need to configure anything inside IntelliJ, Eclipse, or VS Code.
 
 ## 📑 Table of Contents
 
-- [maven-spotless-hooks](#maven-spotless-hooks)
+- [🧼☕🪝 maven-spotless-hooks](#-maven-spotless-hooks)
   - [📑 Table of Contents](#-table-of-contents)
   - [🚀 Quickstart](#-quickstart)
-    - [Installing the Git Hooks](#installing-the-git-hooks)
-      - [Manual Hook Installation (Not Recommended)](#manual-hook-installation-not-recommended)
-      - [Automatic Maven Hook Installation](#automatic-maven-hook-installation)
+    - [🔧 Installing the Git Hooks](#-installing-the-git-hooks)
+      - [⚠️ Manual Hook Installation (Not Recommended)](#️-manual-hook-installation-not-recommended)
+      - [🤖 Automatic Maven Hook Installation](#-automatic-maven-hook-installation)
   - [📚 Additional Documentation](#-additional-documentation)
   - [🤝 Contributing](#-contributing)
   - [🧩 What These Hooks Do](#-what-these-hooks-do)
   - [🪝 Included Hooks](#-included-hooks)
   - [🗺️ Flow Chart](#️-flow-chart)
-    - [Conflict Resolution](#conflict-resolution)
-    - [Hook Behavior During Merge/Rebase](#hook-behavior-during-mergerebase)
-  - [🛠️ Setting up Spotless](#️-setting-up-spotless)
+    - [🔀 Conflict Resolution](#-conflict-resolution)
+    - [🧭 Hook Behavior During Merge/Rebase](#-hook-behavior-during-mergerebase)
+  - [🧼 Setting up Spotless](#-setting-up-spotless)
   - [🛠️ Advanced Configuration](#️-advanced-configuration)
   - [🧯 Troubleshooting](#-troubleshooting)
 
@@ -40,19 +40,19 @@ git commit -m "Adding maven-spotless-hooks"
 
 This will add the `maven-spotless-hooks` repository as a `submodule` in the `.hooks` folder within `your project`, and install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and `pre-commit` hooks automatically when you commit your code.
 
-If you do not have `spotless` set up in your project, you can follow the instructions in the [Setting up Spotless](#setting-up-spotless) section to set it up.
+If you do not have `spotless` set up in your project, you can follow the instructions in the [Setting up Spotless](#-setting-up-spotless) section to set it up.
 
-### Installing the Git Hooks
+### 🔧 Installing the Git Hooks
 
 Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper `git hooks`.
 
-#### Manual Hook Installation (Not Recommended)
+#### ⚠️ Manual Hook Installation (Not Recommended)
 
-You can manually install the hooks, as described in the [quickstart](#quickstart) section, by running `./.hooks/install-hooks.sh` if on **Mac** or **Linux**, or `.\.hooks\install-hooks.ps1` if on **Windows**.
+You can manually install the hooks, as described in the [quickstart](#-quickstart) section, by running `./.hooks/install-hooks.sh` if on **Mac** or **Linux**, or `.\.hooks\install-hooks.ps1` if on **Windows**.
 
 > **Note**: The above commands assume you are in the root of your project that has added this repository as a submodule, and that the submodule was added to the `.hooks` folder. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
 
-#### Automatic Maven Hook Installation
+#### 🤖 Automatic Maven Hook Installation
 
 It should go without saying why a manual only means of hook installation is bad. Ideally, we have the hook installation enforced automatically for us by some sort of shared mechanism. Luckily, if you are reading this, then you are using `Maven`, which happens to have a plugin called [git-build-hook-maven-plugin](https://github.com/rudikershaw/git-build-hook) that can install our hooks automatically. This can be done by adding the following `plugin` to your application's `pom.xml` `<plugins>` section:
 
@@ -123,15 +123,15 @@ spotless:apply
 commit allowed or blocked (only blocked by `spotless` or pre-commit errors)
 ```
 
-### Conflict Resolution
+### 🔀 Conflict Resolution
 
 These hooks are designed to stash non-committed changes prior to commit, so that when `spotless` is run, it can apply the formatting to only the files being changed. After un-stashing, if there are conflicts, we will resolve them, re-run `spotless`, and re-commit the changes. This is done to ensure that the commit is always in a clean state, and that `spotless` has been applied before committing.
 
-### Hook Behavior During Merge/Rebase
+### 🧭 Hook Behavior During Merge/Rebase
 
 These hooks are merge-aware and won’t interfere with merge commits or rebases. Conflicting files are automatically resolved in favor of 'theirs' and re-staged after formatting.
 
-## 🛠️ Setting up Spotless
+## 🧼 Setting up Spotless
 
 For more information on how to set up `spotless`, please refer to [SPOTLESS-CONFIG.md](./docs/SPOTLESS-CONFIG.md).
 

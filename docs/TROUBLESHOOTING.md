@@ -1,25 +1,25 @@
-# Troubleshooting
+# 🧯 Troubleshooting
 
 ## 📑 Table of Contents
 
-- [Troubleshooting](#troubleshooting)
+- [🧯 Troubleshooting](#-troubleshooting)
   - [📑 Table of Contents](#-table-of-contents)
-  - [How to fix "git-sh-setup: file not found" in windows](#how-to-fix-git-sh-setup-file-not-found-in-windows)
-    - [Git Environment Variable Repair](#git-environment-variable-repair)
-  - [Disabling Spotless](#disabling-spotless)
-    - [Use Cases](#use-cases)
-    - [Bamboo Example](#bamboo-example)
-    - [GitHub Actions Example](#github-actions-example)
-  - [Windows: Dynamic JAVA\_HOME Env Variable Changing](#windows-dynamic-java_home-env-variable-changing)
-    - [PowerShell Profile](#powershell-profile)
-      - [Profile Content](#profile-content)
-  - [Debugging These Scripts](#debugging-these-scripts)
+  - [🪟 How to fix "git-sh-setup: file not found" in windows](#-how-to-fix-git-sh-setup-file-not-found-in-windows)
+    - [🧪 Git Environment Variable Repair](#-git-environment-variable-repair)
+  - [🚫 Disabling Spotless](#-disabling-spotless)
+    - [💡 Use Cases](#-use-cases)
+    - [🎍 Bamboo Example](#-bamboo-example)
+    - [🤖 GitHub Actions Example](#-github-actions-example)
+  - [🪟 Windows: Dynamic JAVA\_HOME Env Variable Changing](#-windows-dynamic-java_home-env-variable-changing)
+    - [🛠️ PowerShell Profile](#️-powershell-profile)
+      - [📜 Profile Content](#-profile-content)
+  - [🐞 Debugging These Scripts](#-debugging-these-scripts)
 
-## How to fix "git-sh-setup: file not found" in windows
+## 🪟 How to fix "git-sh-setup: file not found" in windows
 
 For starters, make sure you have the latest version of `git` installed. If you are using `choco`, you can run `choco upgrade git -y` to update `git` and if you don't use `choco` to manage `git`, you can download the latest version of `git` from the [Git for Windows](https://gitforwindows.org/) website.
 
-### Git Environment Variable Repair
+### 🧪 Git Environment Variable Repair
 
 [https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows](https://stackoverflow.com/questions/49256190/how-to-fix-git-sh-setup-file-not-found-in-windows)
 
@@ -32,7 +32,7 @@ For starters, make sure you have the latest version of `git` installed. If you a
 5. These will be added to the end of the list. Click on each one, and then click on `Move Up` until they are at the top
    of the list
 
-## Disabling Spotless
+## 🚫 Disabling Spotless
 
 If you ever need or want to disable `spotless`, we can do so by specifying a Maven profile. This can be done by adding the following profile configuration to the `pom.xml`:
 
@@ -63,15 +63,15 @@ If you ever need or want to disable `spotless`, we can do so by specifying a Mav
 
 This will set up a profile called `github` that will disable the `spotless` plugin. You can then run the following command to disable `spotless`: `mvn clean verify -P github`
 
-### Use Cases
+### 💡 Use Cases
 
 This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted me with projects that are strictly JAR releases instead of full Spring Boot applications that get deployed out.
 
-### Bamboo Example
+### 🎍 Bamboo Example
 
 Your `Bamboo Specs` or `Bamboo UI` should be configured to run the following command: `mvn clean verify -P github`. The key here is the `-P github` flag. This will run the `github` profile and disable the `spotless` plugin.
 
-### GitHub Actions Example
+### 🤖 GitHub Actions Example
 
 <!-- markdownlint-disable-next-line MD033 -->
 <details><summary>View example GitHub Actions Pipeline</summary>
@@ -101,13 +101,13 @@ jobs:
 
 </details>
 
-## Windows: Dynamic JAVA_HOME Env Variable Changing
+## 🪟 Windows: Dynamic JAVA_HOME Env Variable Changing
 
-### PowerShell Profile
+### 🛠️ PowerShell Profile
 
 Run the following command in PowerShell to determine your `$profile` path: `echo $profile`. Then, open the file in your favorite text editor. `notepad.exe $profile` or `code $profile` if you have VS Code installed.
 
-#### Profile Content
+#### 📜 Profile Content
 
 Below is the content of the `PowerShell profile`. This `profile` will give you dynamic functions, aptly named `java8`, `java11`, `java17`, and `java21` to set the `JAVA_HOME` environment variable to the correct version of `Java`. You can then run these functions in PowerShell to switch between `Java` versions at will.
 
@@ -160,7 +160,7 @@ function java21 {
 
 </details>
 
-## Debugging These Scripts
+## 🐞 Debugging These Scripts
 
 To debug these scripts, simply set the `MAVEN_SPOTLESS_HOOKS_DEBUG` environment variable to `1`.
 
