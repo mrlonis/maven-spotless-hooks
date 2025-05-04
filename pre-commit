@@ -52,18 +52,14 @@ handleMergeConflicts() {
       if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
       fi
+      # In a conflict, prefer the incoming (theirs) version
       git checkout --theirs "$(pwd)/$conflictedFile"
       logGitInfo
       if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
         echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
       fi
+      # Unstage the file to prevent it from being committed, let Spotless format it first
       git restore --staged "$(pwd)/$conflictedFile"
-      logGitInfo
-
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-        echo "[git pre-commit hook - $conflictedFile] - Adding $conflictedFile to staging area"
-      fi
-      git add "$conflictedFile"
       logGitInfo
     done
 
