@@ -7,7 +7,7 @@
   - [🪟 How to fix "git-sh-setup: file not found" in windows](#-how-to-fix-git-sh-setup-file-not-found-in-windows)
     - [🧪 Git Environment Variable Repair](#-git-environment-variable-repair)
   - [🚫 Disabling Spotless](#-disabling-spotless)
-    - [💡 Use Cases](#-use-cases)
+    - [💡 Use Cases for Disabling Spotless](#-use-cases-for-disabling-spotless)
     - [🎍 Bamboo Example](#-bamboo-example)
     - [🤖 GitHub Actions Example](#-github-actions-example)
   - [🪟 Windows: Dynamic JAVA\_HOME Env Variable Changing](#-windows-dynamic-java_home-env-variable-changing)
@@ -16,6 +16,8 @@
   - [🐞 Debugging These Scripts](#-debugging-these-scripts)
 
 ## 🪟 How to fix "git-sh-setup: file not found" in windows
+
+If you get any errors related to `git-sh-setup` or `git-sh-setup: file not found`, or some other error when performing the `git submodule update --init --remote --force` command, it is likely due to a problem with your `git` installation or your `PATH` environment variable.
 
 For starters, make sure you have the latest version of `git` installed. If you are using `choco`, you can run `choco upgrade git -y` to update `git` and if you don't use `choco` to manage `git`, you can download the latest version of `git` from the [Git for Windows](https://gitforwindows.org/) website.
 
@@ -63,9 +65,9 @@ If you ever need or want to disable `spotless`, we can do so by specifying a Mav
 
 This will set up a profile called `github` that will disable the `spotless` plugin. You can then run the following command to disable `spotless`: `mvn clean verify -P github`
 
-### 💡 Use Cases
+### 💡 Use Cases for Disabling Spotless
 
-This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted me with projects that are strictly JAR releases instead of full Spring Boot applications that get deployed out.
+This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted projects that publish JARs instead of full Spring Boot applications that get deployed out to the cloud.
 
 ### 🎍 Bamboo Example
 
@@ -164,4 +166,4 @@ function java21 {
 
 To debug these scripts, simply set the `MAVEN_SPOTLESS_HOOKS_DEBUG` environment variable to `1`.
 
-← Back to [README.md](./README.md)
+← Back to [README.md](../README.md)

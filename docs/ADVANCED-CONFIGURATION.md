@@ -16,51 +16,10 @@ This guide covers optional but powerful Spotless hook extensions for teams opera
 
 `Submodules` are not cloned by default on a fresh clone from GitHub so we need to add a plugin to our Maven root `pom.xml` to clone the submodule. Additionally, once a submodule is cloned, it will not be updated to the latest commit unless we run a command to do so. This can be done by adding the `exec-maven-plugin` to our `pom.xml` file. This plugin allows us to run any command as part of the Maven build lifecycle. We will use this plugin to run the `git submodule update --init --remote --force` command as part of the `initialize` phase of the Maven build lifecycle.
 
-The following is the recommended configuration (**hold off on copying this! You likely want to NOT run this in your CI/CD pipeline. Continue reading to find out how to do this**):
+The following is the recommended configuration:
 
 <!-- markdownlint-disable-next-line MD033 -->
 <details><summary>View the plugin configuration</summary>
-
-```xml
-<plugin>
-  <groupId>org.codehaus.mojo</groupId>
-  <artifactId>exec-maven-plugin</artifactId>
-  <version>${exec-maven-plugin.version}</version>
-  <inherited>false</inherited>
-  <executions>
-    <execution>
-      <id>git submodule update</id>
-      <goals>
-        <goal>exec</goal>
-      </goals>
-      <phase>initialize</phase>
-      <configuration>
-        <executable>git</executable>
-        <arguments>
-          <argument>submodule</argument>
-          <argument>update</argument>
-          <argument>--init</argument>
-          <argument>--remote</argument>
-          <argument>--force</argument>
-        </arguments>
-      </configuration>
-    </execution>
-  </executions>
-</plugin>
-```
-
-</details>
-
-### 🖥️ Executed Command
-
-The resulting command that is executed is `git submodule update --init --remote --force` which will `clone the submodule` if it does not exist, `update the submodule` to the latest commit, throw away local changes in submodules when switching to a different commit, and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
-
-### 🚫 Excluding submodule updates during CI
-
-If you are using a CI/CD pipeline, you may want to `exclude the submodule update during the CI/CD pipeline`. This can be done by adding the following configuration to the `pom.xml`:
-
-<!-- markdownlint-disable-next-line MD033 -->
-<details><summary>View <code>pom.xml</code> profile</summary>
 
 ```xml
 <profile>
@@ -72,7 +31,31 @@ If you are using a CI/CD pipeline, you may want to `exclude the submodule update
   </activation>
   <build>
     <plugins>
-      <!-- Copy the plugin configuration above -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${exec-maven-plugin.version}</version>
+        <inherited>false</inherited>
+        <executions>
+          <execution>
+            <id>git submodule update</id>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <phase>initialize</phase>
+            <configuration>
+              <executable>git</executable>
+              <arguments>
+                <argument>submodule</argument>
+                <argument>update</argument>
+                <argument>--init</argument>
+                <argument>--remote</argument>
+                <argument>--force</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </profile>
@@ -80,7 +63,15 @@ If you are using a CI/CD pipeline, you may want to `exclude the submodule update
 
 </details>
 
-This works by checking for the absence of an environment variable `SOME_ENV_VAR` and if it is not present, the submodule update will be executed. This can be used to exclude the submodule update during the CI/CD pipeline.
+### 🖥️ Executed Command
+
+The resulting command that is executed is `git submodule update --init --remote --force` which will `clone the submodule` if it does not exist, `update the submodule` to the latest commit, throw away local changes in submodules when switching to a different commit, and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule.
+
+### 🚫 Excluding submodule updates during CI
+
+If you are using a CI/CD pipeline, you may want to `exclude the submodule update during the CI/CD pipeline`. The recommended configuration above already does this for you. It works by creating a special `Maven Profile` for the plugin. This profile checks for the **ABSENCE** of an environment variable (in this case `SOME_ENV_VAR`) and if it is not present, the plugin will be executed. This can be used to exclude the submodule update during the CI/CD pipeline. Examples for how to do this are listed in the below subsections.
+
+If you would instead like to have this plugin run all the time, even in CI/CD, you can copy the plugin configuration above into the `<plugins>` section of your `pom.xml` file, and remove the `<profile>` section. This will cause the plugin to run every time you run a Maven command.
 
 #### 🤖 GitHub Actions
 
@@ -114,4 +105,4 @@ A filepath such as this `C:\Git Hub\projects\fake` will cause issues with the `M
 
 </details>
 
-← Back to [README.md](./README.md)
+← Back to [README.md](../README.md)
