@@ -6,95 +6,20 @@ These hooks are Git-native and IDE-agnostic. You do not need to configure anythi
 
 - [🧼☕🪝 maven-spotless-hooks](#-maven-spotless-hooks)
   - [📑 Table of Contents](#-table-of-contents)
-  - [🚀 Quickstart](#-quickstart)
-    - [🔧 Installing the Git Hooks](#-installing-the-git-hooks)
-      - [⚠️ Manual Hook Installation (Not Recommended)](#️-manual-hook-installation-not-recommended)
-      - [🤖 Automatic Maven Hook Installation](#-automatic-maven-hook-installation)
-  - [📚 Additional Documentation](#-additional-documentation)
-  - [🤝 Contributing](#-contributing)
   - [🧩 What These Hooks Do](#-what-these-hooks-do)
   - [🪝 Included Hooks](#-included-hooks)
   - [🗺️ Flow Chart](#️-flow-chart)
     - [🔀 Conflict Resolution](#-conflict-resolution)
     - [🧭 Hook Behavior During Merge/Rebase](#-hook-behavior-during-mergerebase)
+  - [🚀 Quickstart](#-quickstart)
+    - [🔧 Installing the Git Hooks](#-installing-the-git-hooks)
+      - [🤖 Automatic Maven Hook Installation](#-automatic-maven-hook-installation)
+        - [🧠 Note on IDEs](#-note-on-ides)
+      - [⚠️ Manual Hook Installation (Not Recommended)](#️-manual-hook-installation-not-recommended)
   - [🧼 Setting up Spotless](#-setting-up-spotless)
   - [🛠️ Advanced Configuration](#️-advanced-configuration)
+  - [🤝 Contributing](#-contributing)
   - [🧯 Troubleshooting](#-troubleshooting)
-
-## 🚀 Quickstart
-
-This repository should be added to another repository as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules). Assuming you have `spotless` already set up in your project, you can add this repository as a submodule and manually install the hooks by running the following command in the root of your project:
-
-```sh
-git submodule add -b main https://github.com/mrlonis/maven-spotless-hooks.git .hooks/
-
-# Install the hooks
-# If on Mac or Linux
-./.hooks/install-hooks.sh
-# If on Windows
-.\.hooks\install-hooks.ps1
-
-# Commit submodule addition - Also tests the hooks are installed
-git commit -m "Adding maven-spotless-hooks"
-```
-
-This will add the `maven-spotless-hooks` repository as a `submodule` in the `.hooks` folder within `your project`, and install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and `pre-commit` hooks automatically when you commit your code.
-
-If you do not have `spotless` set up in your project, you can follow the instructions in the [Setting up Spotless](#-setting-up-spotless) section to set it up.
-
-### 🔧 Installing the Git Hooks
-
-Simply adding this `submodule` is not enough. We then need to install the scripts within this repository as proper `git hooks`.
-
-#### ⚠️ Manual Hook Installation (Not Recommended)
-
-You can manually install the hooks, as described in the [quickstart](#-quickstart) section, by running `./.hooks/install-hooks.sh` if on **Mac** or **Linux**, or `.\.hooks\install-hooks.ps1` if on **Windows**.
-
-> **Note**: The above commands assume you are in the root of your project that has added this repository as a submodule, and that the submodule was added to the `.hooks` folder. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
-
-#### 🤖 Automatic Maven Hook Installation
-
-It should go without saying why a manual only means of hook installation is bad. Ideally, we have the hook installation enforced automatically for us by some sort of shared mechanism. Luckily, if you are reading this, then you are using `Maven`, which happens to have a plugin called [git-build-hook-maven-plugin](https://github.com/rudikershaw/git-build-hook) that can install our hooks automatically. This can be done by adding the following `plugin` to your application's `pom.xml` `<plugins>` section:
-
-<!-- markdownlint-disable-next-line MD033 -->
-<details><summary>View <code>pom.xml</code> plugin</summary>
-
-```xml
-<plugin>
-  <groupId>com.rudikershaw.gitbuildhook</groupId>
-  <artifactId>git-build-hook-maven-plugin</artifactId>
-  <version>${git-build-hook-maven-plugin.version}</version>
-  <configuration>
-    <installHooks>
-      <pre-commit>.hooks/pre-commit</pre-commit>
-      <post-commit>.hooks/post-commit</post-commit>
-    </installHooks>
-  </configuration>
-  <executions>
-    <execution>
-      <goals>
-        <goal>install</goal>
-      </goals>
-    </execution>
-  </executions>
-</plugin>
-```
-
-</details>
-
-Then, anytime any developer runs any commands in Maven that target the `install` goal as part of its build lifecycle, the `git-build-hook-maven-plugin` will install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will ensure that the hooks are always installed and up to date, and that any developer who clones the repository will have the hooks installed automatically.
-
-You might be sitting there thinking, "Why would I run Maven in the terminal, I run my stuff through the IDE". Well, your CI/CD process will run Maven in the terminal, and you should be testing your code in the same way your CI/CD process will run it. This is a good practice to get into, and it will help you avoid issues when you push your code to the remote repository and end up with an easily catch-able error had you run the full test suit locally (often `mvn verify`).
-
-## 📚 Additional Documentation
-
-- [Spotless Configuration](./docs/SPOTLESS-CONFIG.md)
-- [Advanced Configuration](./docs/ADVANCED-CONFIGURATION.md)
-- [Troubleshooting Guide](./docs/TROUBLESHOOTING.md)
-
-## 🤝 Contributing
-
-PRs welcome! Please open an issue first for discussion.
 
 ## 🧩 What These Hooks Do
 
@@ -125,11 +50,80 @@ commit allowed or blocked (only blocked by `spotless` or pre-commit errors)
 
 ### 🔀 Conflict Resolution
 
-These hooks are designed to stash non-committed changes prior to commit, so that when `spotless` is run, it can apply the formatting to only the files being changed. After un-stashing, if there are conflicts, we will resolve them, re-run `spotless`, and re-commit the changes. This is done to ensure that the commit is always in a clean state, and that `spotless` has been applied before committing.
+These hooks are designed to stash non-committed changes prior to commit, so that when `spotless` is run, it can apply the formatting to only the files being changed. After un-stashing, if there are conflicts, we will resolve them using a [theirs strategy](https://www.atlassian.com/git/tutorials/using-branches/merge-strategy) (i.e. We take the un-stashed files changes over the current file's changes), re-run `spotless`, and re-commit the changes. This is done to ensure that the commit is always in a clean state, and that `spotless` has been applied before committing.
 
 ### 🧭 Hook Behavior During Merge/Rebase
 
-These hooks are merge-aware and won’t interfere with merge commits or rebases. Conflicting files are automatically resolved in favor of 'theirs' and re-staged after formatting.
+These hooks are merge-aware and won’t interfere with merge commits or rebases. In the event of a merge or rebase, the hooks will exit early and not run `spotless`.
+
+## 🚀 Quickstart
+
+This repository should be added to another repository as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules). By adding this repository as a submodule, you can easily keep it up to date with the latest changes and improvements. Some [advanced configuration](#️-advanced-configuration) is required to perform submodule updates automatically, but this is not required to get started.
+
+If you have the `spotless-maven-plugin` already configured, you can add this repository as a submodule and manually install the hooks by running the following command in the root of your project:
+
+```sh
+git submodule add -b main https://github.com/mrlonis/maven-spotless-hooks.git .hooks/
+
+# Install the hooks
+# If on Mac or Linux
+./.hooks/install-hooks.sh
+# If on Windows
+.\.hooks\install-hooks.ps1
+
+# Commit submodule addition - Also tests the hooks are installed
+git commit -m "Adding maven-spotless-hooks"
+```
+
+This will add the `maven-spotless-hooks` repository as a `submodule` in the `.hooks` folder within `your project`, and install the `pre-commit` and `post-commit` hooks into the `.git/hooks/` directory. This will allow you to run the `spotless` formatter and `pre-commit` hooks automatically when you commit your code.
+
+If you do not have `spotless` set up in your project, please refer to [SPOTLESS-CONFIG.md](./docs/SPOTLESS-CONFIG.md).
+
+### 🔧 Installing the Git Hooks
+
+If you followed the [Quickstart](#-quickstart) instructions, you should have the submodule added to your project, and the hooks installed, albeit manually. The next step is to ensure that the hooks are installed automatically, so you don't have to worry about it in the future and so that other developers don't need to perform any additional configuration to work on your project. This can be done by adding the `git-build-hook-maven-plugin` to your `pom.xml` file, as described below.
+
+#### 🤖 Automatic Maven Hook Installation
+
+To setup automatic hook installation via `Maven`, add the following `plugin` to your application's `pom.xml` `<plugins>` section:
+
+<!-- markdownlint-disable-next-line MD033 -->
+<details><summary>View <code>pom.xml</code> plugin</summary>
+
+```xml
+<plugin>
+  <groupId>com.rudikershaw.gitbuildhook</groupId>
+  <artifactId>git-build-hook-maven-plugin</artifactId>
+  <version>${git-build-hook-maven-plugin.version}</version> <!-- Set this to the latest version -->
+  <configuration>
+    <installHooks>
+      <pre-commit>.hooks/pre-commit</pre-commit>
+      <post-commit>.hooks/post-commit</post-commit>
+    </installHooks>
+  </configuration>
+  <executions>
+    <execution>
+      <goals>
+        <goal>install</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+```
+
+</details>
+
+##### 🧠 Note on IDEs
+
+Most IDEs (like `IntelliJ` or `Eclipse`) run `Maven` commands using an embedded runner or internal build process, which may not trigger all `Maven` plugin goals, including this hook installation. To ensure the `git-build-hook-maven-plugin` installs the hooks correctly, you should run `Maven` commands (like `mvn clean install`) from the `terminal`, **at least once per fresh clone or submodule update**.
+
+This aligns your local workflow with your CI/CD environment, **which always uses CLI Maven**, and helps catch any setup or formatting issues early.
+
+#### ⚠️ Manual Hook Installation (Not Recommended)
+
+You can manually install the hooks, as described in the [quickstart](#-quickstart) section, by running `./.hooks/install-hooks.sh` if on **Mac** or **Linux**, or `.\.hooks\install-hooks.ps1` if on **Windows**.
+
+> **Note**: The above commands assume you are in the root of your project that has added this repository as a submodule, and that the submodule was added to the `.hooks` folder. If you are not, you will need to adjust the path to the `install-hooks.sh` or `install-hooks.ps1` script accordingly.
 
 ## 🧼 Setting up Spotless
 
@@ -138,6 +132,10 @@ For more information on how to set up `spotless`, please refer to [SPOTLESS-CONF
 ## 🛠️ Advanced Configuration
 
 For more advanced configuration information, such as how to automatically update the submodule with Maven, exclude submodule updates during CI, or a sample `README.md` change to make to your project, please refer to [ADVANCED-CONFIGURATION.md](./docs/ADVANCED-CONFIGURATION.md).
+
+## 🤝 Contributing
+
+PRs welcome! Please open an issue first for discussion.
 
 ## 🧯 Troubleshooting
 
