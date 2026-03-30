@@ -59,7 +59,7 @@ handleMergeConflicts() {
         echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
       fi
       # Unstage the file to prevent it from being committed, let Spotless format it first
-      git restore --staged "$$conflictedFile"
+      git restore --staged "$conflictedFile"
       logGitInfo
     done
 
