@@ -53,11 +53,6 @@ handleSignal() {
   exit "$EXIT_CODE"
 }
 
-trap 'cleanupHookTempDir' EXIT
-trap 'handleSignal HUP 129' HUP
-trap 'handleSignal INT 130' INT
-trap 'handleSignal TERM 143' TERM
-
 abortCommit() {
   echo "[git pre-commit hook] - $1"
   exit "${2:-1}"
@@ -172,6 +167,11 @@ restoreFullyUnstagedTrackedChanges() {
   RECOVERY_PATCH_READY=0
   KEEP_HOOK_TEMP_DIR=0
 }
+
+trap 'cleanupHookTempDir' EXIT
+trap 'handleSignal HUP 129' HUP
+trap 'handleSignal INT 130' INT
+trap 'handleSignal TERM 143' TERM
 
 spotlessApply() {
   # ratchetFrom=HEAD keeps Spotless focused on files touched since the last
