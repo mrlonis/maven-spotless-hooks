@@ -63,7 +63,21 @@ class TempGitRepo:
             #!/bin/sh
             case "${HOOK_TEST_FAIL_GIT_STEP:-}" in
               diff_binary)
-                if [ "$1" = "diff" ] && [ "$2" = "--binary" ] && [ "$3" = "--" ]; then
+                SEEN_DIFF=0
+                SEEN_BINARY=0
+                SEEN_PATH_SEPARATOR=0
+                for arg do
+                  if [ "$arg" = "diff" ]; then
+                    SEEN_DIFF=1
+                  fi
+                  if [ "$SEEN_DIFF" -eq 1 ] && [ "$arg" = "--binary" ]; then
+                    SEEN_BINARY=1
+                  fi
+                  if [ "$SEEN_DIFF" -eq 1 ] && [ "$arg" = "--" ]; then
+                    SEEN_PATH_SEPARATOR=1
+                  fi
+                done
+                if [ "$SEEN_DIFF" -eq 1 ] && [ "$SEEN_BINARY" -eq 1 ] && [ "$SEEN_PATH_SEPARATOR" -eq 1 ]; then
                   echo "simulated git diff --binary failure" >&2
                   exit 17
                 fi
@@ -524,6 +538,39 @@ class HookHarnessTest(unittest.TestCase):
             finally:
                 # The hook intentionally preserves this temp directory on failure.
                 # Clean it up here so the test harness does not leak artifacts.
+                shutil.rmtree(recovery_patch.parent, ignore_errors=True)
+
+    def test_recovery_patch_stays_plain_text_when_diff_color_is_forced(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.git("config", "color.ui", "always")
+            repo.git("config", "color.diff", "always")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit(
+                "Preserve plain-text recovery patch",
+                mode="staged",
+                check=False,
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "apply_restore"},
+            )
+
+            output = repo.combined_output(result)
+            recovery_patch = repo.extract_recovery_patch_path(output)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIsNotNone(recovery_patch)
+            assert recovery_patch is not None
+            try:
+                patch_text = recovery_patch.read_text(encoding="utf-8")
+                self.assertNotIn("\x1b[", patch_text)
+                self.assertIn("notes.txt", patch_text)
+            finally:
                 shutil.rmtree(recovery_patch.parent, ignore_errors=True)
 
 

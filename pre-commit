@@ -18,6 +18,8 @@ PARTIALLY_STAGED_FILES_FILE="$HOOK_TEMP_DIR/partially-staged-files"
 TRACKED_WORKTREE_CHANGES_FILE="$HOOK_TEMP_DIR/tracked-worktree-changes"
 FULLY_UNSTAGED_PATCH_FILE="$HOOK_TEMP_DIR/fully-unstaged.patch"
 KEEP_HOOK_TEMP_DIR=0
+RECOVERY_PATCH_READY=0
+HIDDEN_TRACKED_CHANGES=0
 
 cleanupHookTempDir() {
   # Most runs should leave no temp files behind. The only time we keep the temp
@@ -32,7 +34,29 @@ if [ ! -d "$HOOK_TEMP_DIR" ]; then
   exit 1
 fi
 
-trap 'cleanupHookTempDir' EXIT HUP INT TERM
+handleSignal() {
+  SIGNAL_NAME="$1"
+  EXIT_CODE="$2"
+
+  # If the hook is interrupted after writing the recovery patch, keep the temp
+  # dir around. Once fully unstaged tracked changes have been hidden, that patch
+  # becomes the only copy of them until restoreFullyUnstagedTrackedChanges runs.
+  if [ "$RECOVERY_PATCH_READY" -eq 1 ]; then
+    preserveRecoveryArtifacts
+    echo "[git pre-commit hook] - Received $SIGNAL_NAME before cleanup completed."
+    if [ "$HIDDEN_TRACKED_CHANGES" -eq 1 ]; then
+      echo "[git pre-commit hook] - Fully unstaged tracked changes are stored in the preserved recovery patch."
+      echo "[git pre-commit hook] - You can re-apply them manually with: git apply \"$FULLY_UNSTAGED_PATCH_FILE\""
+    fi
+  fi
+
+  exit "$EXIT_CODE"
+}
+
+trap 'cleanupHookTempDir' EXIT
+trap 'handleSignal HUP 129' HUP
+trap 'handleSignal INT 130' INT
+trap 'handleSignal TERM 143' TERM
 
 abortCommit() {
   echo "[git pre-commit hook] - $1"
@@ -120,13 +144,16 @@ hideFullyUnstagedTrackedChanges() {
     # Save the exact unstaged tracked diff, then restore those paths back to
     # their index state before running Spotless. This keeps unrelated worktree
     # changes out of the commit without touching the user's stash stack.
-    if ! xargs -0 git diff --binary -- < "$TRACKED_WORKTREE_CHANGES_FILE" > "$FULLY_UNSTAGED_PATCH_FILE"; then
+    if ! xargs -0 git -c color.ui=false diff --no-color --binary -- < "$TRACKED_WORKTREE_CHANGES_FILE" > "$FULLY_UNSTAGED_PATCH_FILE"; then
       abortCommit "Failed to build a recovery patch for fully unstaged tracked changes. Aborting commit!"
     fi
+    RECOVERY_PATCH_READY=1
+    KEEP_HOOK_TEMP_DIR=1
     if ! xargs -0 git restore --worktree -- < "$TRACKED_WORKTREE_CHANGES_FILE"; then
       preserveRecoveryArtifacts
       abortCommit "Failed to temporarily hide fully unstaged tracked changes. Aborting commit!"
     fi
+    HIDDEN_TRACKED_CHANGES=1
   fi
 }
 
@@ -140,6 +167,10 @@ restoreFullyUnstagedTrackedChanges() {
     echo "[git pre-commit hook] - You can re-apply the patch manually with: git apply \"$FULLY_UNSTAGED_PATCH_FILE\""
     return 1
   fi
+
+  HIDDEN_TRACKED_CHANGES=0
+  RECOVERY_PATCH_READY=0
+  KEEP_HOOK_TEMP_DIR=0
 }
 
 spotlessApply() {
