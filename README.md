@@ -161,7 +161,7 @@ For more advanced configuration information, such as how to automatically update
 
 ## 🤝 Contributing
 
-PRs welcome! Please open an issue first for discussion.
+For contributing guidelines, please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## 🧯 Troubleshooting
 
