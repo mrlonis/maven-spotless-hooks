@@ -1,16 +1,21 @@
 #!/bin/sh
-HOOK_STASH_CREATED=0
+HOOK_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/maven-spotless-hooks.XXXXXX")"
+PARTIALLY_STAGED_FILES_FILE="$HOOK_TEMP_DIR/partially-staged-files"
+TRACKED_WORKTREE_CHANGES_FILE="$HOOK_TEMP_DIR/tracked-worktree-changes"
+FULLY_UNSTAGED_PATCH_FILE="$HOOK_TEMP_DIR/fully-unstaged.patch"
 
-logGitInfo() {
-  if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-    echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
-    git status --porcelain
-    echo "[git pre-commit hook - $conflictedFile] - git status"
-    git status
-    echo "[git pre-commit hook - $conflictedFile] - git diff --name-only"
-    git diff --name-only
+cleanupHookTempDir() {
+  if [ -n "$HOOK_TEMP_DIR" ] && [ -d "$HOOK_TEMP_DIR" ]; then
+    rm -rf "$HOOK_TEMP_DIR"
   fi
 }
+
+if [ ! -d "$HOOK_TEMP_DIR" ]; then
+  echo "[git pre-commit hook] - Failed to create temporary workspace. Aborting commit!"
+  exit 1
+fi
+
+trap 'cleanupHookTempDir' EXIT HUP INT TERM
 
 handleMergeCommit() {
   if [ -f .git/MERGE_HEAD ]; then
@@ -28,29 +33,43 @@ handleEmptyCommitAtStart() {
   fi
 }
 
-stageUnStagedChangesInStagedFiles() {
+listTrackedWorktreeChanges() {
+  git diff --name-only -z > "$TRACKED_WORKTREE_CHANGES_FILE"
+}
+
+stagePartiallyStagedFiles() {
+  : > "$PARTIALLY_STAGED_FILES_FILE"
   if ! git diff --cached --quiet --diff-filter=ad; then
-    # Preserve the current behavior of staging the full working-tree version of
-    # already-staged files, but pass the file list in a NUL-safe format.
+    # Partially staged files appear in both the index diff and the worktree
+    # diff. We promote only those files to fully staged before formatting.
     git diff --name-only --cached --diff-filter=ad -z |
-      git add --pathspec-from-file=- --pathspec-file-nul
+      xargs -0 sh -c '
+        for file do
+          if ! git diff --quiet -- "$file"; then
+            printf "%s\0" "$file"
+          fi
+        done
+      ' sh > "$PARTIALLY_STAGED_FILES_FILE"
+  fi
+
+  if [ -s "$PARTIALLY_STAGED_FILES_FILE" ]; then
+    git add --pathspec-from-file="$PARTIALLY_STAGED_FILES_FILE" --pathspec-file-nul
   fi
 }
 
-createHookStash() {
-  STASH_BEFORE="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
-  # Only pop a stash later if this hook created a new stash entry.
-  git stash -q --keep-index
-  STASH_AFTER="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
+hideFullyUnstagedTrackedChanges() {
+  : > "$FULLY_UNSTAGED_PATCH_FILE"
+  listTrackedWorktreeChanges
 
-  if [ -n "$STASH_AFTER" ] && [ "$STASH_AFTER" != "$STASH_BEFORE" ]; then
-    HOOK_STASH_CREATED=1
+  if [ -s "$TRACKED_WORKTREE_CHANGES_FILE" ]; then
+    xargs -0 git diff --binary -- < "$TRACKED_WORKTREE_CHANGES_FILE" > "$FULLY_UNSTAGED_PATCH_FILE"
+    xargs -0 git restore --worktree -- < "$TRACKED_WORKTREE_CHANGES_FILE"
   fi
 }
 
-restoreHookStash() {
-  if [ "$HOOK_STASH_CREATED" -eq 1 ]; then
-    git stash pop -q stash@{0}
+restoreFullyUnstagedTrackedChanges() {
+  if [ -s "$FULLY_UNSTAGED_PATCH_FILE" ]; then
+    git apply --whitespace=nowarn "$FULLY_UNSTAGED_PATCH_FILE"
   fi
 }
 
@@ -63,69 +82,34 @@ spotlessApply() {
   fi
 }
 
-handleMergeConflicts() {
-  conflictedFiles="$(git diff --name-only --diff-filter=U)"
-  if [ -n "$conflictedFiles" ]; then
-    for conflictedFile in $conflictedFiles; do
-      echo "[git pre-commit hook] - Resolving conflict for $conflictedFile"
-      logGitInfo
-
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-        echo "[git pre-commit hook - $conflictedFile] - Calling git checkout --theirs"
-      fi
-      # In a conflict, prefer the incoming (theirs aka stashed) version
-      git checkout --theirs "$conflictedFile"
-      logGitInfo
-      if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-        echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
-      fi
-      # Unstage the file to prevent it from being committed, let Spotless format it first
-      git restore --staged "$conflictedFile"
-      logGitInfo
-    done
-
-    if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
-      echo "[git pre-commit hook] - Re-running spotless:apply after conflict resolution"
-    fi
-    # Re-run spotless:apply to format the files after resolving conflicts
-    spotlessApply
-    # Stage all Stage all modified and deleted files, but do NOT include new untracked files, after spotless
-    git add -u
-    logGitInfo
-  fi
-}
-
 handleEmptyCommitAtEnd() {
   git diff --cached --quiet
   GIT_DIFF=$?
   if [ "$GIT_DIFF" -eq 0 ]; then
     echo "[git pre-commit hook] - No changes to commit! Aborting commit!"
-    # We end up with no changes to commit here due to the stashing and un-stashing of changes
-    # where we stash a bad formatting change, apply the formatting, and then un-stash the bad formatting change.
-    #
-    # Example:
-    #   - We accidentally indented 1 line in a file by an extra space. This causes us to stash the extra space, apply the
-    #     formatting which will remove the extra space, and then un-stash the extra space back into the file that the
-    #     formatter just removed. By re-running spotless:apply, we remove the extra space again and remove the file from
-    #     the staging area.
-    #
-    # This results in no changes to commit, so we exit with 1 to prevent committing an empty commit.
-    # We run spotless:apply again here to ensure that the files are formatted correctly and to remove the file from the staging area.
-    spotlessApply
     exit 1
   fi
 }
 
 handleMergeCommit
 handleEmptyCommitAtStart
-stageUnStagedChangesInStagedFiles
-createHookStash
+stagePartiallyStagedFiles
+hideFullyUnstagedTrackedChanges
 echo "[git pre-commit hook] - Running spotless:apply"
 spotlessApply
 SPOTLESS_APPLY_RESULT=$?
 # Re-stage updated files from spotless:apply
 git add -u
-restoreHookStash
-handleMergeConflicts
+GIT_ADD_RESULT=$?
+restoreFullyUnstagedTrackedChanges
+RESTORE_RESULT=$?
+if [ "$RESTORE_RESULT" -ne 0 ]; then
+  echo "[git pre-commit hook] - Failed to restore fully unstaged tracked changes. Aborting commit!"
+  exit "$RESTORE_RESULT"
+fi
+if [ "$GIT_ADD_RESULT" -ne 0 ]; then
+  echo "[git pre-commit hook] - Failed to stage formatted files. Aborting commit!"
+  exit "$GIT_ADD_RESULT"
+fi
 handleEmptyCommitAtEnd
 exit $SPOTLESS_APPLY_RESULT

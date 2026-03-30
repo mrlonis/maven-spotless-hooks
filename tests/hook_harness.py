@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import os
 import subprocess
 import tempfile
@@ -83,13 +84,20 @@ class TempGitRepo:
     def _make_executable(path: Path) -> None:
         path.chmod(path.stat().st_mode | 0o755)
 
-    def run(self, *args: str, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    def run(
+        self,
+        *args: str,
+        check: bool = True,
+        env: dict[str, str] | None = None,
+        input_text: str | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
             list(args),
             cwd=self.root,
             env=env or self.env,
             check=False,
             text=True,
+            input=input_text,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -119,6 +127,33 @@ class TempGitRepo:
     def write_file(self, relative_path: str, contents: str) -> None:
         self._write_file(self.root / relative_path, contents)
 
+    def stage_partial_file(
+        self,
+        relative_path: str,
+        *,
+        base_contents: str,
+        staged_contents: str,
+        worktree_contents: str,
+    ) -> None:
+        self.write_file(relative_path, worktree_contents)
+        patch = "".join(
+            difflib.unified_diff(
+                base_contents.splitlines(keepends=True),
+                staged_contents.splitlines(keepends=True),
+                fromfile=f"a/{relative_path}",
+                tofile=f"b/{relative_path}",
+            )
+        )
+        self.run(
+            "git",
+            "apply",
+            "--cached",
+            "-",
+            check=True,
+            env=self.env | {"LC_ALL": "C"},
+            input_text=patch,
+        )
+
     def read_file(self, relative_path: str) -> str:
         return (self.root / relative_path).read_text(encoding="utf-8")
 
@@ -126,7 +161,7 @@ class TempGitRepo:
         return self.git("show", f"HEAD:{relative_path}").stdout
 
     def status_lines(self) -> list[str]:
-        output = self.git("status", "--short", "--untracked-files=no").stdout.strip()
+        output = self.git("status", "--short", "--untracked-files=no").stdout.rstrip("\n")
         return output.splitlines() if output else []
 
     def stash_list(self) -> str:
@@ -154,7 +189,7 @@ class HookHarnessTest(unittest.TestCase):
             self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
             self.assertEqual(repo.status_lines(), [])
 
-    def test_tracked_unstaged_changes_follow_current_restore_flow(self) -> None:
+    def test_preserves_fully_unstaged_tracked_changes_outside_commit(self) -> None:
         with TempGitRepo() as repo:
             repo.write_file("staged.txt", "ORIGINAL\n")
             repo.write_file("notes.txt", "VALUE=BASE BAD\n")
@@ -169,11 +204,12 @@ class HookHarnessTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
             self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
-            # The current hook flow restores tracked unstaged changes via stash
-            # pop, then re-runs formatting and commits the result.
-            self.assertEqual(repo.head_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
+            self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            # Pre-commit keeps the fully unstaged tracked file out of HEAD.
+            # Post-commit still formats the restored working-tree copy.
             self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
-            self.assertEqual(repo.status_lines(), [])
+            self.assertEqual(repo.status_lines(), [" M notes.txt"])
+            self.assertEqual(repo.unmerged_files(), [])
 
     def test_preserves_existing_user_stash_entries(self) -> None:
         with TempGitRepo() as repo:
@@ -193,23 +229,24 @@ class HookHarnessTest(unittest.TestCase):
             self.assertIn("user-stash", repo.stash_list())
             self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
 
-    def test_resolves_stash_pop_conflicts_and_finishes_commit(self) -> None:
+    def test_promotes_partially_staged_files_before_formatting(self) -> None:
         with TempGitRepo() as repo:
-            repo.write_file("staged.txt", "GOOD\n")
-            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
-            repo.git("add", "staged.txt", "notes.txt")
-            repo.commit("Seed tracked files", mode="noop")
+            base_contents = "FIRST=ORIGINAL\nSECOND=ORIGINAL\n"
+            repo.write_file("partial.txt", base_contents)
+            repo.git("add", "partial.txt")
+            repo.commit("Seed partial file", mode="noop")
 
-            repo.write_file("staged.txt", "BAD   \n")
-            repo.git("add", "staged.txt")
-            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+            repo.stage_partial_file(
+                "partial.txt",
+                base_contents=base_contents,
+                staged_contents="FIRST=BAD\nSECOND=ORIGINAL\n",
+                worktree_contents="FIRST=BAD\nSECOND=UNSTAGED BAD\n",
+            )
 
-            result = repo.commit("Exercise conflict path", mode="conflict")
+            result = repo.commit("Commit partially staged file", mode="staged")
 
             self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
-            self.assertEqual(repo.unmerged_files(), [])
-            self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
-            self.assertEqual(repo.head_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
+            self.assertEqual(repo.head_file("partial.txt"), "FIRST=GOOD\nSECOND=UNSTAGED GOOD\n")
             self.assertEqual(repo.status_lines(), [])
 
 
