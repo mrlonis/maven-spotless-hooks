@@ -144,15 +144,21 @@ class TempGitRepo:
                 tofile=f"b/{relative_path}",
             )
         )
-        self.run(
-            "git",
-            "apply",
-            "--cached",
-            "-",
-            check=True,
-            env=self.env | {"LC_ALL": "C"},
-            input_text=patch,
-        )
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", newline="\n", delete=False) as patch_file:
+            patch_file.write(patch)
+            patch_path = patch_file.name
+
+        try:
+            self.run(
+                "git",
+                "apply",
+                "--cached",
+                patch_path,
+                check=True,
+                env=self.env | {"LC_ALL": "C"},
+            )
+        finally:
+            Path(patch_path).unlink(missing_ok=True)
 
     def read_file(self, relative_path: str) -> str:
         return (self.root / relative_path).read_text(encoding="utf-8")
