@@ -142,7 +142,7 @@ class TempGitRepo:
     def _install_hooks(self) -> None:
         hooks_dir = self.root / ".git" / "hooks"
         hooks_dir.mkdir(parents=True, exist_ok=True)
-        hook_path_prefix = str(self.bin_dir).replace("\\", "/").replace('"', '\\"')
+        hook_path_prefix = self._shell_path(self.bin_dir).replace('"', '\\"')
         for source, destination_name in ((PRE_COMMIT, "pre-commit"), (POST_COMMIT, "post-commit")):
             destination = hooks_dir / destination_name
             source_text = source.read_text(encoding="utf-8")
@@ -153,6 +153,20 @@ class TempGitRepo:
                 newline="\n",
             )
             self._make_executable(destination)
+
+    @staticmethod
+    def _shell_path(path: Path) -> str:
+        path_text = str(path.resolve())
+        if os.name != "nt":
+            return path_text
+
+        drive, remainder = os.path.splitdrive(path_text)
+        if not drive:
+            return path_text.replace("\\", "/")
+
+        drive_letter = drive.rstrip(":").lower()
+        remainder = remainder.replace("\\", "/")
+        return f"/{drive_letter}{remainder}"
 
     @staticmethod
     def _write_file(path: Path, contents: str, newline: str = "\n") -> None:
