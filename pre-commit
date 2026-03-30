@@ -1,11 +1,13 @@
 #!/bin/sh
 HOOK_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/maven-spotless-hooks.XXXXXX")"
+TRACKED_STAGED_CHANGES_FILE="$HOOK_TEMP_DIR/tracked-staged-changes"
 PARTIALLY_STAGED_FILES_FILE="$HOOK_TEMP_DIR/partially-staged-files"
 TRACKED_WORKTREE_CHANGES_FILE="$HOOK_TEMP_DIR/tracked-worktree-changes"
 FULLY_UNSTAGED_PATCH_FILE="$HOOK_TEMP_DIR/fully-unstaged.patch"
+KEEP_HOOK_TEMP_DIR=0
 
 cleanupHookTempDir() {
-  if [ -n "$HOOK_TEMP_DIR" ] && [ -d "$HOOK_TEMP_DIR" ]; then
+  if [ "$KEEP_HOOK_TEMP_DIR" -ne 1 ] && [ -n "$HOOK_TEMP_DIR" ] && [ -d "$HOOK_TEMP_DIR" ]; then
     rm -rf "$HOOK_TEMP_DIR"
   fi
 }
@@ -16,6 +18,17 @@ if [ ! -d "$HOOK_TEMP_DIR" ]; then
 fi
 
 trap 'cleanupHookTempDir' EXIT HUP INT TERM
+
+abortCommit() {
+  echo "[git pre-commit hook] - $1"
+  exit "${2:-1}"
+}
+
+preserveRecoveryArtifacts() {
+  KEEP_HOOK_TEMP_DIR=1
+  echo "[git pre-commit hook] - Preserving recovery artifacts at $HOOK_TEMP_DIR"
+  echo "[git pre-commit hook] - Hidden changes patch: $FULLY_UNSTAGED_PATCH_FILE"
+}
 
 handleMergeCommit() {
   if [ -f .git/MERGE_HEAD ]; then
@@ -37,39 +50,60 @@ listTrackedWorktreeChanges() {
   git diff --name-only -z > "$TRACKED_WORKTREE_CHANGES_FILE"
 }
 
+listTrackedStagedChanges() {
+  git diff --name-only --cached --diff-filter=ad -z > "$TRACKED_STAGED_CHANGES_FILE"
+}
+
 stagePartiallyStagedFiles() {
   : > "$PARTIALLY_STAGED_FILES_FILE"
-  if ! git diff --cached --quiet --diff-filter=ad; then
+  if ! listTrackedStagedChanges; then
+    abortCommit "Failed to inspect staged files. Aborting commit!"
+  fi
+
+  if [ -s "$TRACKED_STAGED_CHANGES_FILE" ]; then
     # Partially staged files appear in both the index diff and the worktree
     # diff. We promote only those files to fully staged before formatting.
-    git diff --name-only --cached --diff-filter=ad -z |
-      xargs -0 sh -c '
+    if ! xargs -0 sh -c '
         for file do
           if ! git diff --quiet -- "$file"; then
             printf "%s\0" "$file"
           fi
         done
-      ' sh > "$PARTIALLY_STAGED_FILES_FILE"
+      ' sh < "$TRACKED_STAGED_CHANGES_FILE" > "$PARTIALLY_STAGED_FILES_FILE"; then
+      abortCommit "Failed to identify partially staged files. Aborting commit!"
+    fi
   fi
 
-  if [ -s "$PARTIALLY_STAGED_FILES_FILE" ]; then
-    git add --pathspec-from-file="$PARTIALLY_STAGED_FILES_FILE" --pathspec-file-nul
+  if [ -s "$PARTIALLY_STAGED_FILES_FILE" ] &&
+    ! git add --pathspec-from-file="$PARTIALLY_STAGED_FILES_FILE" --pathspec-file-nul; then
+    abortCommit "Failed to promote partially staged files. Please refresh your index and try again."
   fi
 }
 
 hideFullyUnstagedTrackedChanges() {
   : > "$FULLY_UNSTAGED_PATCH_FILE"
-  listTrackedWorktreeChanges
+  if ! listTrackedWorktreeChanges; then
+    abortCommit "Failed to inspect fully unstaged tracked changes. Aborting commit!"
+  fi
 
   if [ -s "$TRACKED_WORKTREE_CHANGES_FILE" ]; then
-    xargs -0 git diff --binary -- < "$TRACKED_WORKTREE_CHANGES_FILE" > "$FULLY_UNSTAGED_PATCH_FILE"
-    xargs -0 git restore --worktree -- < "$TRACKED_WORKTREE_CHANGES_FILE"
+    if ! xargs -0 git diff --binary -- < "$TRACKED_WORKTREE_CHANGES_FILE" > "$FULLY_UNSTAGED_PATCH_FILE"; then
+      abortCommit "Failed to build a recovery patch for fully unstaged tracked changes. Aborting commit!"
+    fi
+    if ! xargs -0 git restore --worktree -- < "$TRACKED_WORKTREE_CHANGES_FILE"; then
+      preserveRecoveryArtifacts
+      abortCommit "Failed to temporarily hide fully unstaged tracked changes. Aborting commit!"
+    fi
   fi
 }
 
 restoreFullyUnstagedTrackedChanges() {
-  if [ -s "$FULLY_UNSTAGED_PATCH_FILE" ]; then
-    git apply --whitespace=nowarn "$FULLY_UNSTAGED_PATCH_FILE"
+  if [ -s "$FULLY_UNSTAGED_PATCH_FILE" ] &&
+    ! git apply --whitespace=nowarn "$FULLY_UNSTAGED_PATCH_FILE"; then
+    preserveRecoveryArtifacts
+    echo "[git pre-commit hook] - Failed to restore fully unstaged tracked changes."
+    echo "[git pre-commit hook] - You can re-apply the patch manually with: git apply \"$FULLY_UNSTAGED_PATCH_FILE\""
+    return 1
   fi
 }
 
