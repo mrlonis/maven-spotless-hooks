@@ -1,1 +1,4 @@
 * text=auto
+*.sh text eol=lf
+pre-commit text eol=lf
+post-commit text eol=lf
