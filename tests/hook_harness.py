@@ -282,8 +282,24 @@ class TempGitRepo:
         prefix = "[git pre-commit hook] - Hidden changes patch: "
         for line in output.splitlines():
             if line.startswith(prefix):
-                return Path(line[len(prefix) :].strip())
+                return TempGitRepo._native_path(line[len(prefix) :].strip())
         return None
+
+    @staticmethod
+    def _native_path(path_text: str) -> Path:
+        if os.name != "nt":
+            return Path(path_text)
+
+        if path_text == "/tmp":
+            return Path(tempfile.gettempdir())
+        if path_text.startswith("/tmp/"):
+            return Path(tempfile.gettempdir()) / path_text.removeprefix("/tmp/")
+        if len(path_text) >= 4 and path_text[0] == "/" and path_text[2] == "/" and path_text[1].isalpha():
+            drive_letter = path_text[1].upper()
+            remainder = path_text[3:].replace("/", "\\")
+            return Path(f"{drive_letter}:\\{remainder}")
+
+        return Path(path_text)
 
     @staticmethod
     def format_failure(command: tuple[str, ...], result: subprocess.CompletedProcess[str]) -> str:
