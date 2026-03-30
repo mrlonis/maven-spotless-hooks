@@ -29,9 +29,11 @@ handleEmptyCommitAtStart() {
 }
 
 stageUnStagedChangesInStagedFiles() {
-  STAGED_FILES=$(git diff --name-only --cached --diff-filter=ad)
-  if [ -n "$STAGED_FILES" ]; then
-    echo "$STAGED_FILES" | xargs git add
+  if ! git diff --cached --quiet --diff-filter=ad; then
+    # Preserve the current behavior of staging the full working-tree version of
+    # already-staged files, but pass the file list in a NUL-safe format.
+    git diff --name-only --cached --diff-filter=ad -z |
+      git add --pathspec-from-file=- --pathspec-file-nul
   fi
 }
 
