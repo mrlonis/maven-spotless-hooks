@@ -25,41 +25,41 @@ standalone CLI. When you work in this repo, think in terms of:
 
 Key files and their roles:
 
-- [`README.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/README.md)
+- [`README.md`](../README.md)
   High-level usage and downstream setup docs.
-- [`pre-commit`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/pre-commit)
+- [`pre-commit`](../pre-commit)
   The main hook. This is the most important file in the repository.
-- [`post-commit`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/post-commit)
+- [`post-commit`](../post-commit)
   A simpler follow-up hook that re-runs `spotless:apply`.
-- [`install-hooks.sh`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/install-hooks.sh)
+- [`install-hooks.sh`](../install-hooks.sh)
   Manual Unix installation helper.
-- [`install-hooks.ps1`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/install-hooks.ps1)
+- [`install-hooks.ps1`](../install-hooks.ps1)
   Manual Windows installation helper.
-- [`tests/hook_harness.py`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/tests/hook_harness.py)
+- [`tests/hook_harness.py`](../tests/hook_harness.py)
   Cross-platform test harness that spins up disposable git repos and executes the
   real hooks against them.
-- [`tests/fake_mvn.py`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/tests/fake_mvn.py)
+- [`tests/fake_mvn.py`](../tests/fake_mvn.py)
   Fake deterministic formatter used by the harness instead of real Maven/Spotless.
-- [`tests/__init__.py`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/tests/__init__.py)
+- [`tests/__init__.py`](../tests/__init__.py)
   Test package marker.
-- [`docs/SPOTLESS-CONFIG.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/docs/SPOTLESS-CONFIG.md)
+- [`docs/SPOTLESS-CONFIG.md`](../docs/SPOTLESS-CONFIG.md)
   Downstream Spotless setup docs.
-- [`docs/ADVANCED-CONFIGURATION.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/docs/ADVANCED-CONFIGURATION.md)
+- [`docs/ADVANCED-CONFIGURATION.md`](../docs/ADVANCED-CONFIGURATION.md)
   Advanced downstream integration guidance.
-- [`docs/TROUBLESHOOTING.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/docs/TROUBLESHOOTING.md)
+- [`docs/TROUBLESHOOTING.md`](../docs/TROUBLESHOOTING.md)
   Troubleshooting guidance.
-- [`.github/workflows/hook-tests.yml`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/.github/workflows/hook-tests.yml)
+- [`.github/workflows/hook-tests.yml`](workflows/hook-tests.yml)
   CI matrix for Linux, macOS, and Windows.
-- [`.gitattributes`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/.gitattributes)
+- [`.gitattributes`](../.gitattributes)
   Forces shell-facing files to `LF`, which is important for hook execution.
 
 ## Source of Truth
 
 For behavior questions, the order of trust should be:
 
-1. [`pre-commit`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/pre-commit)
-2. [`tests/hook_harness.py`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/tests/hook_harness.py)
-3. [`README.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/README.md) and `docs/`
+1. [`pre-commit`](../pre-commit)
+2. [`tests/hook_harness.py`](../tests/hook_harness.py)
+3. [`README.md`](../README.md) and `docs/`
 
 If implementation and docs diverge, prefer fixing the docs to match the tested
 implementation unless the implementation is clearly wrong.
@@ -116,7 +116,7 @@ Important invariant:
 
 ## `pre-commit` Invariants You Should Preserve
 
-If you change [`pre-commit`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/pre-commit),
+If you change [`pre-commit`](../pre-commit),
 preserve these properties unless the repository owner explicitly wants different
 behavior:
 
@@ -137,7 +137,7 @@ behavior:
 
 ## `post-commit` Semantics
 
-[`post-commit`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/post-commit) is intentionally
+[`post-commit`](../post-commit) is intentionally
 simple:
 
 - it re-runs `spotless:apply`
@@ -188,8 +188,8 @@ The downstream Maven plugin configuration typically looks like:
 When editing install or usage docs, remember:
 
 - the submodule path is conventionally `.hooks`
-- [`install-hooks.sh`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/install-hooks.sh)
-  and [`install-hooks.ps1`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/install-hooks.ps1)
+- [`install-hooks.sh`](../install-hooks.sh)
+  and [`install-hooks.ps1`](../install-hooks.ps1)
   currently assume that path and assume the caller is at the downstream repo root
 - changes here affect real downstream developer workflows, not just this repo
 
@@ -249,7 +249,7 @@ Avoid:
 
 Line endings matter for hooks.
 
-[`.gitattributes`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/.gitattributes) forces:
+[`.gitattributes`](../.gitattributes) forces:
 
 - `*.sh` to `LF`
 - `pre-commit` to `LF`
@@ -275,7 +275,7 @@ Do not assume a path that works in one of these contexts works in another.
 
 The test harness is intentionally integration-like even though it runs quickly.
 
-[`tests/hook_harness.py`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/tests/hook_harness.py)
+[`tests/hook_harness.py`](../tests/hook_harness.py)
 does **not** test the hook by mocking shell functions. It:
 
 - creates a temporary git repo
@@ -300,7 +300,7 @@ totally separate unit-test style.
 
 ## Fake Formatter Design
 
-[`tests/fake_mvn.py`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/tests/fake_mvn.py)
+[`tests/fake_mvn.py`](../tests/fake_mvn.py)
 replaces real Maven/Spotless during tests.
 
 It supports mode-driven behavior:
@@ -489,9 +489,9 @@ they are necessary.
 
 If behavior changes, check whether these need updates:
 
-- [`README.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/README.md)
-- [`docs/ADVANCED-CONFIGURATION.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/docs/ADVANCED-CONFIGURATION.md)
-- [`docs/TROUBLESHOOTING.md`](/mnt/c/GitHub/mrlonis/maven-spotless-hooks/docs/TROUBLESHOOTING.md)
+- [`README.md`](../README.md)
+- [`docs/ADVANCED-CONFIGURATION.md`](../docs/ADVANCED-CONFIGURATION.md)
+- [`docs/TROUBLESHOOTING.md`](../docs/TROUBLESHOOTING.md)
 - this file
 
 The implementation and test harness are more authoritative than prose docs, but
