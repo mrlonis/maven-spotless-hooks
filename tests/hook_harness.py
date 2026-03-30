@@ -22,6 +22,9 @@ class TempGitRepo:
         self.root = Path(self._tempdir.name) / "repo"
         self.bin_dir = self.root / ".test-bin"
         self.env = os.environ.copy()
+        # Grab the real git binary before the harness prepends .test-bin to PATH.
+        # The wrapper scripts delegate back to this path so they can simulate a
+        # single failure mode without recursing into themselves.
         self.real_git = shutil.which("git", path=self.env.get("PATH"))
         if self.real_git is None:
             raise RuntimeError("Unable to locate git for the hook harness.")
@@ -52,6 +55,9 @@ class TempGitRepo:
         self.env["REAL_GIT"] = self.real_git
 
     def _create_fake_git_wrappers(self) -> None:
+        # The hook under test shells out to git many times. By shadowing git on
+        # PATH we can inject one specific failure mode for one commit attempt
+        # while letting every other git command fall through to the real binary.
         shell_wrapper = textwrap.dedent(
             """\
             #!/bin/sh
@@ -147,6 +153,13 @@ class TempGitRepo:
             destination = hooks_dir / destination_name
             source_text = source.read_text(encoding="utf-8")
             hook_body = source_text.split("\n", 1)[1] if source_text.startswith("#!/bin/sh\n") else source_text
+            # Install a test-local copy of each hook that prepends .test-bin to
+            # PATH. That makes the hook itself pick up our fake git/mvn wrappers
+            # instead of only the outer `git commit` started by the test.
+            #
+            # Keep the shebang at byte 0. Git for Windows is much stricter here
+            # than Linux/macOS and will fail to spawn hooks if the file starts
+            # with indentation or any leading whitespace.
             destination.write_text(
                 f'#!/bin/sh\nPATH="{hook_path_prefix}:$PATH"\nexport PATH\n{hook_body}',
                 encoding="utf-8",
@@ -160,6 +173,9 @@ class TempGitRepo:
         if os.name != "nt":
             return path_text
 
+        # Git hooks on Windows run inside Git Bash/sh, so shell PATH entries must
+        # use /c/... style paths. A raw C:/... entry is split at the drive-letter
+        # colon and the wrapper binary is never found.
         drive, remainder = os.path.splitdrive(path_text)
         if not drive:
             return path_text.replace("\\", "/")
@@ -245,6 +261,9 @@ class TempGitRepo:
             patch_path = patch_file.name
 
         try:
+            # Feeding the patch over stdin works on Unix, but on Windows text mode
+            # can rewrite newlines before git sees them. Writing an explicit LF
+            # patch file keeps partial-staging deterministic across runners.
             self.run(
                 "git",
                 "apply",
@@ -282,6 +301,9 @@ class TempGitRepo:
         prefix = "[git pre-commit hook] - Hidden changes patch: "
         for line in output.splitlines():
             if line.startswith(prefix):
+                # The hook prints paths from its shell environment. On Windows
+                # that means Git-Bash paths like /c/... or /tmp/..., which need
+                # to be translated before Python can check them on the host OS.
                 return TempGitRepo._native_path(line[len(prefix) :].strip())
         return None
 
@@ -290,6 +312,9 @@ class TempGitRepo:
         if os.name != "nt":
             return Path(path_text)
 
+        # The preserved recovery artifact path comes back from the shell that ran
+        # the hook, not from Python. Normalize the common Git-Bash forms we emit
+        # in CI so the tests can assert that the artifact really exists.
         if path_text == "/tmp":
             return Path(tempfile.gettempdir())
         if path_text.startswith("/tmp/"):
@@ -461,6 +486,8 @@ class HookHarnessTest(unittest.TestCase):
                 self.assertIn("notes.txt", recovery_patch.read_text(encoding="utf-8"))
                 self.assertIn("+VALUE=UNSTAGED BAD", recovery_patch.read_text(encoding="utf-8"))
             finally:
+                # The hook intentionally preserves this temp directory on failure.
+                # Clean it up here so the test harness does not leak artifacts.
                 shutil.rmtree(recovery_patch.parent, ignore_errors=True)
 
     def test_preserves_recovery_patch_when_restoring_hidden_changes_fails(self) -> None:
@@ -495,6 +522,8 @@ class HookHarnessTest(unittest.TestCase):
                 self.assertEqual(repo.head_file("staged.txt"), "ORIGINAL\n")
                 self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
             finally:
+                # The hook intentionally preserves this temp directory on failure.
+                # Clean it up here so the test harness does not leak artifacts.
                 shutil.rmtree(recovery_patch.parent, ignore_errors=True)
 
 
