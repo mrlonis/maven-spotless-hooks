@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import difflib
 import os
+import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -20,10 +22,17 @@ class TempGitRepo:
         self.root = Path(self._tempdir.name) / "repo"
         self.bin_dir = self.root / ".test-bin"
         self.env = os.environ.copy()
+        # Grab the real git binary before the harness prepends .test-bin to PATH.
+        # The wrapper scripts delegate back to this path so they can simulate a
+        # single failure mode without recursing into themselves.
+        self.real_git = shutil.which("git", path=self.env.get("PATH"))
+        if self.real_git is None:
+            raise RuntimeError("Unable to locate git for the hook harness.")
 
     def __enter__(self) -> "TempGitRepo":
         self.root.mkdir()
         self.bin_dir.mkdir()
+        self._create_fake_git_wrappers()
         self._create_fake_maven_wrappers()
         self._prepare_environment()
         self.git("init")
@@ -43,6 +52,103 @@ class TempGitRepo:
         self.env["FAKE_MVN_PY"] = str(FAKE_MVN)
         self.env["GIT_TERMINAL_PROMPT"] = "0"
         self.env["HOOK_TEST_PYTHON"] = "python" if os.name == "nt" else "python3"
+        self.env["REAL_GIT"] = self.real_git
+        # The sh wrapper runs under Git Bash on Windows, so give it a shell-safe
+        # path to the real git binary instead of a raw C:\... path.
+        self.env["REAL_GIT_SH"] = self._shell_path(Path(self.real_git))
+
+    def _create_fake_git_wrappers(self) -> None:
+        # The hook under test shells out to git many times. By shadowing git on
+        # PATH we can inject one specific failure mode for one commit attempt
+        # while letting every other git command fall through to the real binary.
+        shell_wrapper = textwrap.dedent(
+            """\
+            #!/bin/sh
+            case "${HOOK_TEST_FAIL_GIT_STEP:-}" in
+              diff_binary)
+                SEEN_DIFF=0
+                SEEN_BINARY=0
+                SEEN_PATH_SEPARATOR=0
+                for arg do
+                  if [ "$arg" = "diff" ]; then
+                    SEEN_DIFF=1
+                  fi
+                  if [ "$SEEN_DIFF" -eq 1 ] && [ "$arg" = "--binary" ]; then
+                    SEEN_BINARY=1
+                  fi
+                  if [ "$SEEN_DIFF" -eq 1 ] && [ "$arg" = "--" ]; then
+                    SEEN_PATH_SEPARATOR=1
+                  fi
+                done
+                if [ "$SEEN_DIFF" -eq 1 ] && [ "$SEEN_BINARY" -eq 1 ] && [ "$SEEN_PATH_SEPARATOR" -eq 1 ]; then
+                  echo "simulated git diff --binary failure" >&2
+                  exit 17
+                fi
+                ;;
+              restore_worktree)
+                if [ "$1" = "restore" ] && [ "$2" = "--worktree" ] && [ "$3" = "--" ]; then
+                  echo "simulated git restore --worktree failure" >&2
+                  exit 18
+                fi
+                ;;
+              restore_unavailable)
+                if [ "$1" = "restore" ]; then
+                  echo "simulated git restore unavailable" >&2
+                  exit 21
+                fi
+                ;;
+              add_pathspec)
+                if [ "$1" = "add" ] && [ "$3" = "--pathspec-file-nul" ]; then
+                  case "$2" in
+                    --pathspec-from-file=*)
+                      echo "simulated git add --pathspec-from-file failure" >&2
+                      exit 19
+                      ;;
+                  esac
+                fi
+                ;;
+              apply_restore)
+                if [ "$1" = "apply" ] && [ "$2" = "--whitespace=nowarn" ]; then
+                  echo "simulated git apply restore failure" >&2
+                  exit 20
+                fi
+                ;;
+            esac
+            exec "$REAL_GIT_SH" "$@"
+            """
+        )
+        cmd_wrapper = textwrap.dedent(
+            """\
+            @echo off
+            setlocal
+            if "%HOOK_TEST_FAIL_GIT_STEP%"=="diff_binary" if "%~1"=="diff" if "%~2"=="--binary" if "%~3"=="--" (
+              >&2 echo simulated git diff --binary failure
+              exit /b 17
+            )
+            if "%HOOK_TEST_FAIL_GIT_STEP%"=="restore_worktree" if "%~1"=="restore" if "%~2"=="--worktree" if "%~3"=="--" (
+              >&2 echo simulated git restore --worktree failure
+              exit /b 18
+            )
+            if "%HOOK_TEST_FAIL_GIT_STEP%"=="restore_unavailable" if "%~1"=="restore" (
+              >&2 echo simulated git restore unavailable
+              exit /b 21
+            )
+            echo %~2 | findstr /B /C:"--pathspec-from-file=" >nul
+            if "%HOOK_TEST_FAIL_GIT_STEP%"=="add_pathspec" if "%~1"=="add" if not errorlevel 1 if "%~3"=="--pathspec-file-nul" (
+              >&2 echo simulated git add --pathspec-from-file failure
+              exit /b 19
+            )
+            if "%HOOK_TEST_FAIL_GIT_STEP%"=="apply_restore" if "%~1"=="apply" if "%~2"=="--whitespace=nowarn" (
+              >&2 echo simulated git apply restore failure
+              exit /b 20
+            )
+            "%REAL_GIT%" %*
+            """
+        )
+
+        self._write_file(self.bin_dir / "git", shell_wrapper)
+        self._write_file(self.bin_dir / "git.cmd", cmd_wrapper, newline="\r\n")
+        self._make_executable(self.bin_dir / "git")
 
     def _create_fake_maven_wrappers(self) -> None:
         shell_wrapper = textwrap.dedent(
@@ -69,10 +175,41 @@ class TempGitRepo:
     def _install_hooks(self) -> None:
         hooks_dir = self.root / ".git" / "hooks"
         hooks_dir.mkdir(parents=True, exist_ok=True)
+        hook_path_prefix = self._shell_path(self.bin_dir).replace('"', '\\"')
         for source, destination_name in ((PRE_COMMIT, "pre-commit"), (POST_COMMIT, "post-commit")):
             destination = hooks_dir / destination_name
-            destination.write_bytes(source.read_bytes())
+            source_text = source.read_text(encoding="utf-8")
+            hook_body = source_text.split("\n", 1)[1] if source_text.startswith("#!/bin/sh\n") else source_text
+            # Install a test-local copy of each hook that prepends .test-bin to
+            # PATH. That makes the hook itself pick up our fake git/mvn wrappers
+            # instead of only the outer `git commit` started by the test.
+            #
+            # Keep the shebang at byte 0. Git for Windows is much stricter here
+            # than Linux/macOS and will fail to spawn hooks if the file starts
+            # with indentation or any leading whitespace.
+            destination.write_text(
+                f'#!/bin/sh\nPATH="{hook_path_prefix}:$PATH"\nexport PATH\n{hook_body}',
+                encoding="utf-8",
+                newline="\n",
+            )
             self._make_executable(destination)
+
+    @staticmethod
+    def _shell_path(path: Path) -> str:
+        path_text = str(path.resolve())
+        if os.name != "nt":
+            return path_text
+
+        # Git hooks on Windows run inside Git Bash/sh, so shell PATH entries must
+        # use /c/... style paths. A raw C:/... entry is split at the drive-letter
+        # colon and the wrapper binary is never found.
+        drive, remainder = os.path.splitdrive(path_text)
+        if not drive:
+            return path_text.replace("\\", "/")
+
+        drive_letter = drive.rstrip(":").lower()
+        remainder = remainder.replace("\\", "/")
+        return f"/{drive_letter}{remainder}"
 
     @staticmethod
     def _write_file(path: Path, contents: str, newline: str = "\n") -> None:
@@ -83,13 +220,20 @@ class TempGitRepo:
     def _make_executable(path: Path) -> None:
         path.chmod(path.stat().st_mode | 0o755)
 
-    def run(self, *args: str, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    def run(
+        self,
+        *args: str,
+        check: bool = True,
+        env: dict[str, str] | None = None,
+        input_text: str | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
             list(args),
             cwd=self.root,
             env=env or self.env,
             check=False,
             text=True,
+            input=input_text,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -107,9 +251,12 @@ class TempGitRepo:
         mode: str = "staged",
         allow_empty: bool = False,
         check: bool = True,
+        extra_env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         env = self.env.copy()
         env["FAKE_MVN_MODE"] = mode
+        if extra_env:
+            env.update(extra_env)
         command = ["git", "commit", "--no-gpg-sign"]
         if allow_empty:
             command.append("--allow-empty")
@@ -119,14 +266,58 @@ class TempGitRepo:
     def write_file(self, relative_path: str, contents: str) -> None:
         self._write_file(self.root / relative_path, contents)
 
+    def stage_partial_file(
+        self,
+        relative_path: str,
+        *,
+        base_contents: str,
+        staged_contents: str,
+        worktree_contents: str,
+    ) -> None:
+        self.write_file(relative_path, worktree_contents)
+        if not base_contents:
+            # New-file patches are more reliable when the index already has an
+            # intent-to-add entry. This avoids depending on git apply inferring a
+            # file creation from a generic unified diff shape.
+            self.git("add", "-N", "--", relative_path)
+        patch = "".join(
+            difflib.unified_diff(
+                base_contents.splitlines(keepends=True),
+                staged_contents.splitlines(keepends=True),
+                fromfile="/dev/null" if not base_contents else f"a/{relative_path}",
+                tofile=f"b/{relative_path}",
+            )
+        )
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", newline="\n", delete=False) as patch_file:
+            patch_file.write(patch)
+            patch_path = patch_file.name
+
+        try:
+            # Feeding the patch over stdin works on Unix, but on Windows text mode
+            # can rewrite newlines before git sees them. Writing an explicit LF
+            # patch file keeps partial-staging deterministic across runners.
+            self.run(
+                "git",
+                "apply",
+                "--cached",
+                patch_path,
+                check=True,
+                env=self.env | {"LC_ALL": "C"},
+            )
+        finally:
+            Path(patch_path).unlink(missing_ok=True)
+
     def read_file(self, relative_path: str) -> str:
         return (self.root / relative_path).read_text(encoding="utf-8")
 
     def head_file(self, relative_path: str) -> str:
         return self.git("show", f"HEAD:{relative_path}").stdout
 
+    def index_file(self, relative_path: str) -> str:
+        return self.git("show", f":{relative_path}").stdout
+
     def status_lines(self) -> list[str]:
-        output = self.git("status", "--short", "--untracked-files=no").stdout.strip()
+        output = self.git("status", "--short", "--untracked-files=no").stdout.rstrip("\n")
         return output.splitlines() if output else []
 
     def stash_list(self) -> str:
@@ -135,6 +326,40 @@ class TempGitRepo:
     def unmerged_files(self) -> list[str]:
         output = self.git("diff", "--name-only", "--diff-filter=U").stdout.strip()
         return output.splitlines() if output else []
+
+    @staticmethod
+    def combined_output(result: subprocess.CompletedProcess[str]) -> str:
+        return result.stdout + result.stderr
+
+    @staticmethod
+    def extract_recovery_patch_path(output: str) -> Path | None:
+        prefix = "[git pre-commit hook] - Hidden changes patch: "
+        for line in output.splitlines():
+            if line.startswith(prefix):
+                # The hook prints paths from its shell environment. On Windows
+                # that means Git-Bash paths like /c/... or /tmp/..., which need
+                # to be translated before Python can check them on the host OS.
+                return TempGitRepo._native_path(line[len(prefix) :].strip())
+        return None
+
+    @staticmethod
+    def _native_path(path_text: str) -> Path:
+        if os.name != "nt":
+            return Path(path_text)
+
+        # The preserved recovery artifact path comes back from the shell that ran
+        # the hook, not from Python. Normalize the common Git-Bash forms we emit
+        # in CI so the tests can assert that the artifact really exists.
+        if path_text == "/tmp":
+            return Path(tempfile.gettempdir())
+        if path_text.startswith("/tmp/"):
+            return Path(tempfile.gettempdir()) / path_text.removeprefix("/tmp/")
+        if len(path_text) >= 4 and path_text[0] == "/" and path_text[2] == "/" and path_text[1].isalpha():
+            drive_letter = path_text[1].upper()
+            remainder = path_text[3:].replace("/", "\\")
+            return Path(f"{drive_letter}:\\{remainder}")
+
+        return Path(path_text)
 
     @staticmethod
     def format_failure(command: tuple[str, ...], result: subprocess.CompletedProcess[str]) -> str:
@@ -154,7 +379,7 @@ class HookHarnessTest(unittest.TestCase):
             self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
             self.assertEqual(repo.status_lines(), [])
 
-    def test_tracked_unstaged_changes_follow_current_restore_flow(self) -> None:
+    def test_preserves_fully_unstaged_tracked_changes_outside_commit(self) -> None:
         with TempGitRepo() as repo:
             repo.write_file("staged.txt", "ORIGINAL\n")
             repo.write_file("notes.txt", "VALUE=BASE BAD\n")
@@ -169,11 +394,35 @@ class HookHarnessTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
             self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
-            # The current hook flow restores tracked unstaged changes via stash
-            # pop, then re-runs formatting and commits the result.
-            self.assertEqual(repo.head_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
+            self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            # Pre-commit keeps the fully unstaged tracked file out of HEAD.
+            # Post-commit still formats the restored working-tree copy.
             self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
-            self.assertEqual(repo.status_lines(), [])
+            self.assertEqual(repo.status_lines(), [" M notes.txt"])
+            self.assertEqual(repo.unmerged_files(), [])
+
+    def test_falls_back_to_git_checkout_when_git_restore_is_unavailable(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit(
+                "Commit staged file with restore fallback",
+                mode="staged",
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "restore_unavailable"},
+            )
+
+            self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
+            self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
+            self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
+            self.assertEqual(repo.status_lines(), [" M notes.txt"])
 
     def test_preserves_existing_user_stash_entries(self) -> None:
         with TempGitRepo() as repo:
@@ -193,24 +442,218 @@ class HookHarnessTest(unittest.TestCase):
             self.assertIn("user-stash", repo.stash_list())
             self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
 
-    def test_resolves_stash_pop_conflicts_and_finishes_commit(self) -> None:
+    def test_promotes_partially_staged_files_before_formatting(self) -> None:
         with TempGitRepo() as repo:
-            repo.write_file("staged.txt", "GOOD\n")
+            base_contents = "FIRST=ORIGINAL\nSECOND=ORIGINAL\n"
+            repo.write_file("partial.txt", base_contents)
+            repo.git("add", "partial.txt")
+            repo.commit("Seed partial file", mode="noop")
+
+            repo.stage_partial_file(
+                "partial.txt",
+                base_contents=base_contents,
+                staged_contents="FIRST=BAD\nSECOND=ORIGINAL\n",
+                worktree_contents="FIRST=BAD\nSECOND=UNSTAGED BAD\n",
+            )
+
+            result = repo.commit("Commit partially staged file", mode="staged")
+
+            self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
+            self.assertEqual(repo.head_file("partial.txt"), "FIRST=GOOD\nSECOND=UNSTAGED GOOD\n")
+            self.assertEqual(repo.status_lines(), [])
+
+    def test_promotes_partially_staged_new_files_before_formatting(self) -> None:
+        with TempGitRepo() as repo:
+            repo.stage_partial_file(
+                "partial-new.txt",
+                base_contents="",
+                staged_contents="FIRST=BAD\n",
+                worktree_contents="FIRST=BAD\nSECOND=UNSTAGED BAD\n",
+            )
+
+            result = repo.commit("Commit partially staged new file", mode="staged")
+
+            self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
+            self.assertEqual(repo.head_file("partial-new.txt"), "FIRST=GOOD\nSECOND=UNSTAGED GOOD\n")
+            self.assertEqual(repo.status_lines(), [])
+
+    def test_aborts_when_promoting_partially_staged_files_fails(self) -> None:
+        with TempGitRepo() as repo:
+            base_contents = "FIRST=ORIGINAL\nSECOND=ORIGINAL\n"
+            repo.write_file("partial.txt", base_contents)
+            repo.git("add", "partial.txt")
+            repo.commit("Seed partial file", mode="noop")
+
+            repo.stage_partial_file(
+                "partial.txt",
+                base_contents=base_contents,
+                staged_contents="FIRST=BAD\nSECOND=ORIGINAL\n",
+                worktree_contents="FIRST=BAD\nSECOND=UNSTAGED BAD\n",
+            )
+
+            result = repo.commit(
+                "Fail partial promotion",
+                mode="staged",
+                check=False,
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "add_pathspec"},
+            )
+
+            output = repo.combined_output(result)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Failed to promote partially staged files. Please refresh your index and try again.", output)
+            self.assertEqual(repo.head_file("partial.txt"), base_contents)
+            self.assertEqual(repo.read_file("partial.txt"), "FIRST=BAD\nSECOND=UNSTAGED BAD\n")
+
+    def test_aborts_when_building_recovery_patch_fails(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
             repo.write_file("notes.txt", "VALUE=BASE BAD\n")
             repo.git("add", "staged.txt", "notes.txt")
             repo.commit("Seed tracked files", mode="noop")
 
-            repo.write_file("staged.txt", "BAD   \n")
+            repo.write_file("staged.txt", "BAD\n")
             repo.git("add", "staged.txt")
             repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
 
-            result = repo.commit("Exercise conflict path", mode="conflict")
+            result = repo.commit(
+                "Fail patch generation",
+                mode="staged",
+                check=False,
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "diff_binary"},
+            )
 
-            self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
-            self.assertEqual(repo.unmerged_files(), [])
-            self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
-            self.assertEqual(repo.head_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
-            self.assertEqual(repo.status_lines(), [])
+            output = repo.combined_output(result)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Failed to build a recovery patch for fully unstaged tracked changes. Aborting commit!", output)
+            self.assertEqual(repo.head_file("staged.txt"), "ORIGINAL\n")
+            self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED BAD\n")
+
+    def test_preserves_recovery_patch_when_hiding_fully_unstaged_changes_fails(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit(
+                "Fail hide fully unstaged changes",
+                mode="staged",
+                check=False,
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "restore_worktree"},
+            )
+
+            output = repo.combined_output(result)
+            recovery_patch = repo.extract_recovery_patch_path(output)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Preserving recovery artifacts at", output)
+            self.assertIn("Failed to temporarily hide fully unstaged tracked changes. Aborting commit!", output)
+            self.assertIsNotNone(recovery_patch)
+            assert recovery_patch is not None
+            try:
+                self.assertTrue(recovery_patch.exists())
+                self.assertIn("notes.txt", recovery_patch.read_text(encoding="utf-8"))
+                self.assertIn("+VALUE=UNSTAGED BAD", recovery_patch.read_text(encoding="utf-8"))
+            finally:
+                # The hook intentionally preserves this temp directory on failure.
+                # Clean it up here so the test harness does not leak artifacts.
+                shutil.rmtree(recovery_patch.parent, ignore_errors=True)
+
+    def test_preserves_recovery_patch_when_restoring_hidden_changes_fails(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit(
+                "Fail restore fully unstaged changes",
+                mode="staged",
+                check=False,
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "apply_restore"},
+            )
+
+            output = repo.combined_output(result)
+            recovery_patch = repo.extract_recovery_patch_path(output)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Preserving recovery artifacts at", output)
+            self.assertIn("Failed to restore fully unstaged tracked changes.", output)
+            self.assertIn("You can re-apply the patch manually with: git apply", output)
+            self.assertIsNotNone(recovery_patch)
+            assert recovery_patch is not None
+            try:
+                self.assertTrue(recovery_patch.exists())
+                self.assertIn("notes.txt", recovery_patch.read_text(encoding="utf-8"))
+                self.assertEqual(repo.head_file("staged.txt"), "ORIGINAL\n")
+                self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            finally:
+                # The hook intentionally preserves this temp directory on failure.
+                # Clean it up here so the test harness does not leak artifacts.
+                shutil.rmtree(recovery_patch.parent, ignore_errors=True)
+
+    def test_recovery_patch_stays_plain_text_when_diff_color_is_forced(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.git("config", "color.ui", "always")
+            repo.git("config", "color.diff", "always")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit(
+                "Preserve plain-text recovery patch",
+                mode="staged",
+                check=False,
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "apply_restore"},
+            )
+
+            output = repo.combined_output(result)
+            recovery_patch = repo.extract_recovery_patch_path(output)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIsNotNone(recovery_patch)
+            assert recovery_patch is not None
+            try:
+                patch_text = recovery_patch.read_text(encoding="utf-8")
+                self.assertNotIn("\x1b[", patch_text)
+                self.assertIn("notes.txt", patch_text)
+            finally:
+                shutil.rmtree(recovery_patch.parent, ignore_errors=True)
+
+    def test_restores_hidden_changes_without_restaging_formatter_edits_when_spotless_fails(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit("Fail after formatting", mode="fail_after_format", check=False)
+
+            output = repo.combined_output(result)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("spotless:apply failed. Aborting commit without staging formatter edits.", output)
+            self.assertEqual(repo.head_file("staged.txt"), "ORIGINAL\n")
+            self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            self.assertEqual(repo.index_file("staged.txt"), "BAD\n")
+            self.assertEqual(repo.read_file("staged.txt"), "GOOD\n")
+            self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED BAD\n")
+            self.assertCountEqual(repo.status_lines(), ["MM staged.txt", " M notes.txt"])
 
 
 if __name__ == "__main__":
