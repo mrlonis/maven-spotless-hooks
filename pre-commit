@@ -93,9 +93,11 @@ listTrackedWorktreeChanges() {
 }
 
 listTrackedStagedChanges() {
-  # Restrict this list to tracked staged changes. The partial-stage promotion and
-  # patch-hide flow only reason about tracked files that already exist in the repo.
-  git diff --name-only --cached --diff-filter=ad -z > "$TRACKED_STAGED_CHANGES_FILE"
+  # Include staged adds here too. A newly added file can still be partially
+  # staged, and it needs the same "promote the whole file before formatting"
+  # treatment as an already tracked file. We exclude only deletions because
+  # there is no worktree content left to format or promote.
+  git diff --name-only --cached --diff-filter=d -z > "$TRACKED_STAGED_CHANGES_FILE"
 }
 
 stagePartiallyStagedFiles() {

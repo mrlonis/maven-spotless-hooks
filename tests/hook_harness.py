@@ -418,6 +418,21 @@ class HookHarnessTest(unittest.TestCase):
             self.assertEqual(repo.head_file("partial.txt"), "FIRST=GOOD\nSECOND=UNSTAGED GOOD\n")
             self.assertEqual(repo.status_lines(), [])
 
+    def test_promotes_partially_staged_new_files_before_formatting(self) -> None:
+        with TempGitRepo() as repo:
+            repo.stage_partial_file(
+                "partial-new.txt",
+                base_contents="",
+                staged_contents="FIRST=BAD\n",
+                worktree_contents="FIRST=BAD\nSECOND=UNSTAGED BAD\n",
+            )
+
+            result = repo.commit("Commit partially staged new file", mode="staged")
+
+            self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
+            self.assertEqual(repo.head_file("partial-new.txt"), "FIRST=GOOD\nSECOND=UNSTAGED GOOD\n")
+            self.assertEqual(repo.status_lines(), [])
+
     def test_aborts_when_promoting_partially_staged_files_fails(self) -> None:
         with TempGitRepo() as repo:
             base_contents = "FIRST=ORIGINAL\nSECOND=ORIGINAL\n"
