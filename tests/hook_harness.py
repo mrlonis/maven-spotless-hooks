@@ -91,6 +91,12 @@ class TempGitRepo:
                   exit 18
                 fi
                 ;;
+              restore_unavailable)
+                if [ "$1" = "restore" ]; then
+                  echo "simulated git restore unavailable" >&2
+                  exit 21
+                fi
+                ;;
               add_pathspec)
                 if [ "$1" = "add" ] && [ "$3" = "--pathspec-file-nul" ]; then
                   case "$2" in
@@ -122,6 +128,10 @@ class TempGitRepo:
             if "%HOOK_TEST_FAIL_GIT_STEP%"=="restore_worktree" if "%~1"=="restore" if "%~2"=="--worktree" if "%~3"=="--" (
               >&2 echo simulated git restore --worktree failure
               exit /b 18
+            )
+            if "%HOOK_TEST_FAIL_GIT_STEP%"=="restore_unavailable" if "%~1"=="restore" (
+              >&2 echo simulated git restore unavailable
+              exit /b 21
             )
             echo %~2 | findstr /B /C:"--pathspec-from-file=" >nul
             if "%HOOK_TEST_FAIL_GIT_STEP%"=="add_pathspec" if "%~1"=="add" if not errorlevel 1 if "%~3"=="--pathspec-file-nul" (
@@ -303,6 +313,9 @@ class TempGitRepo:
     def head_file(self, relative_path: str) -> str:
         return self.git("show", f"HEAD:{relative_path}").stdout
 
+    def index_file(self, relative_path: str) -> str:
+        return self.git("show", f":{relative_path}").stdout
+
     def status_lines(self) -> list[str]:
         output = self.git("status", "--short", "--untracked-files=no").stdout.rstrip("\n")
         return output.splitlines() if output else []
@@ -387,6 +400,29 @@ class HookHarnessTest(unittest.TestCase):
             self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
             self.assertEqual(repo.status_lines(), [" M notes.txt"])
             self.assertEqual(repo.unmerged_files(), [])
+
+    def test_falls_back_to_git_checkout_when_git_restore_is_unavailable(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit(
+                "Commit staged file with restore fallback",
+                mode="staged",
+                extra_env={"HOOK_TEST_FAIL_GIT_STEP": "restore_unavailable"},
+            )
+
+            self.assertEqual(result.returncode, 0, repo.format_failure(("git", "commit"), result))
+            self.assertEqual(repo.head_file("staged.txt"), "GOOD\n")
+            self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED GOOD\n")
+            self.assertEqual(repo.status_lines(), [" M notes.txt"])
 
     def test_preserves_existing_user_stash_entries(self) -> None:
         with TempGitRepo() as repo:
@@ -595,6 +631,29 @@ class HookHarnessTest(unittest.TestCase):
                 self.assertIn("notes.txt", patch_text)
             finally:
                 shutil.rmtree(recovery_patch.parent, ignore_errors=True)
+
+    def test_restores_hidden_changes_without_restaging_formatter_edits_when_spotless_fails(self) -> None:
+        with TempGitRepo() as repo:
+            repo.write_file("staged.txt", "ORIGINAL\n")
+            repo.write_file("notes.txt", "VALUE=BASE BAD\n")
+            repo.git("add", "staged.txt", "notes.txt")
+            repo.commit("Seed tracked files", mode="noop")
+
+            repo.write_file("staged.txt", "BAD\n")
+            repo.git("add", "staged.txt")
+            repo.write_file("notes.txt", "VALUE=UNSTAGED BAD\n")
+
+            result = repo.commit("Fail after formatting", mode="fail_after_format", check=False)
+
+            output = repo.combined_output(result)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("spotless:apply failed. Aborting commit without staging formatter edits.", output)
+            self.assertEqual(repo.head_file("staged.txt"), "ORIGINAL\n")
+            self.assertEqual(repo.head_file("notes.txt"), "VALUE=BASE BAD\n")
+            self.assertEqual(repo.index_file("staged.txt"), "BAD\n")
+            self.assertEqual(repo.read_file("staged.txt"), "GOOD\n")
+            self.assertEqual(repo.read_file("notes.txt"), "VALUE=UNSTAGED BAD\n")
+            self.assertCountEqual(repo.status_lines(), ["MM staged.txt", " M notes.txt"])
 
 
 if __name__ == "__main__":

@@ -9,8 +9,9 @@ These hooks are Git-native and IDE-agnostic. You do not need to configure anythi
   - [🧩 What These Hooks Do](#-what-these-hooks-do)
   - [🪝 Included Hooks](#-included-hooks)
   - [🗺️ Flow Chart](#️-flow-chart)
-    - [🔀 Conflict Resolution](#-conflict-resolution)
+    - [🔀 Handling Staged and Unstaged Changes](#-handling-staged-and-unstaged-changes)
     - [🧭 Hook Behavior During Merge/Rebase](#-hook-behavior-during-mergerebase)
+    - [🧰 Git Compatibility](#-git-compatibility)
   - [🚀 Quickstart](#-quickstart)
     - [🔧 Installing the Git Hooks](#-installing-the-git-hooks)
       - [🤖 Automatic Maven Hook Installation](#-automatic-maven-hook-installation)
@@ -23,12 +24,12 @@ These hooks are Git-native and IDE-agnostic. You do not need to configure anythi
 
 ## 🧩 What These Hooks Do
 
-This repo provides Git `pre-commit` and `post-commit` hooks that automatically run `Spotless` on files you've changed. This ensures consistent formatting and reduces noisy diffs before commits ever hit GitHub for PR Review.
+This repo provides Git `pre-commit` and `post-commit` hooks that automatically run `Spotless` on files you've changed. The `pre-commit` hook is careful about staged vs unstaged work so that formatting is applied to what you are committing without trampling unrelated tracked changes in your working tree.
 
 ## 🪝 Included Hooks
 
-- `pre-commit`: Applies `Spotless` to staged files before commit
-- `post-commit`: Re-runs `Spotless` after commit to handle missed diffs
+- `pre-commit`: Promotes partially staged files, hides fully unstaged tracked changes, runs `Spotless`, and restores hidden changes
+- `post-commit`: Re-runs `Spotless` after commit to handle any remaining changed files in the working tree
 
 ## 🗺️ Flow Chart
 
@@ -37,9 +38,15 @@ git commit
    ↓
 pre-commit hook
    ↓
+promote partially staged files
+   ↓
+hide fully unstaged tracked changes
+   ↓
 spotless:apply
    ↓
-conflict resolution
+re-stage formatter edits (only if spotless succeeds)
+   ↓
+restore hidden tracked changes
    ↓
 post-commit hook
    ↓
@@ -48,13 +55,32 @@ spotless:apply
 commit allowed or blocked (only blocked by `spotless` or pre-commit errors)
 ```
 
-### 🔀 Conflict Resolution
+### 🔀 Handling Staged and Unstaged Changes
 
-These hooks are designed to stash non-committed changes prior to commit, so that when `spotless` is run, it can apply the formatting to only the files being changed. After un-stashing, if there are conflicts, we will resolve them using a [theirs strategy](https://www.atlassian.com/git/tutorials/using-branches/merge-strategy) (i.e. We take the un-stashed files changes over the current file's changes), re-run `spotless`, and re-commit the changes. This is done to ensure that the commit is always in a clean state, and that `spotless` has been applied before committing.
+The `pre-commit` hook intentionally does **not** use `git stash` anymore.
+
+Instead, it uses a patch-based workflow:
+
+- partially staged files are promoted to fully staged before formatting
+- fully unstaged tracked changes are saved as a temporary patch
+- those fully unstaged tracked files are restored to index state before `spotless:apply` runs
+- after formatting finishes, the hidden patch is re-applied to the working tree
+
+This keeps the commit focused on the intended staged changes while leaving the user's existing stash history alone.
+
+If `spotless:apply` itself fails, the hook restores any hidden tracked changes and aborts the commit without re-staging formatter edits into the index.
+
+If the hook cannot restore the hidden patch, it preserves the temporary workspace and prints the path to the recovery patch so the user can apply it manually with `git apply`.
 
 ### 🧭 Hook Behavior During Merge/Rebase
 
 These hooks are merge-aware and won’t interfere with merge commits or rebases. In the event of a merge or rebase, the hooks will exit early and not run `spotless`.
+
+### 🧰 Git Compatibility
+
+The `pre-commit` hook prefers `git restore --worktree` when it is available, but it falls back to `git checkout --` for older Git versions that do not support `git restore`.
+
+Using a modern Git version is still recommended, especially on Windows.
 
 ## 🚀 Quickstart
 

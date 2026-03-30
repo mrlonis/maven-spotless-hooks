@@ -50,7 +50,7 @@ def format_file(path: Path) -> None:
 def paths_for_mode(repo: Path, mode: str) -> list[Path]:
     if mode == "noop":
         return []
-    if mode == "staged":
+    if mode in {"staged", "fail_after_format"}:
         return git_paths(repo, "diff", "--name-only", "HEAD", "-z")
     if mode == "conflict":
         return git_paths(repo, "ls-files", "-z")
@@ -66,6 +66,8 @@ def main() -> int:
     mode = os.environ.get("FAKE_MVN_MODE", "staged")
     for path in paths_for_mode(repo, mode):
         format_file(path)
+    if mode == "fail_after_format":
+        return 1
     return 0
 
 

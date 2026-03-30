@@ -146,7 +146,7 @@ hideFullyUnstagedTrackedChanges() {
     fi
     RECOVERY_PATCH_READY=1
     KEEP_HOOK_TEMP_DIR=1
-    if ! xargs -0 git restore --worktree -- < "$TRACKED_WORKTREE_CHANGES_FILE"; then
+    if ! restoreWorktreePaths "$TRACKED_WORKTREE_CHANGES_FILE"; then
       preserveRecoveryArtifacts
       abortCommit "Failed to temporarily hide fully unstaged tracked changes. Aborting commit!"
     fi
@@ -175,6 +175,20 @@ trap 'handleSignal HUP 129' HUP
 trap 'handleSignal INT 130' INT
 trap 'handleSignal TERM 143' TERM
 
+restoreWorktreePaths() {
+  PATHS_FILE="$1"
+
+  # Prefer git restore when available, but fall back to git checkout for older
+  # Git versions that do not support restore yet.
+  git restore -h >/dev/null 2>&1
+  GIT_RESTORE_HELP_RESULT=$?
+  if [ "$GIT_RESTORE_HELP_RESULT" -eq 0 ] || [ "$GIT_RESTORE_HELP_RESULT" -eq 129 ]; then
+    xargs -0 git restore --worktree -- < "$PATHS_FILE"
+  else
+    xargs -0 git checkout -- < "$PATHS_FILE"
+  fi
+}
+
 spotlessApply() {
   # ratchetFrom=HEAD keeps Spotless focused on files touched since the last
   # commit, and -T 1C helps larger multi-module Maven repos without hurting the
@@ -201,7 +215,7 @@ handleEmptyCommitAtEnd() {
 # - normalize partial files first
 # - hide unrelated tracked worktree changes
 # - run Spotless
-# - re-stage formatter edits
+# - re-stage formatter edits if Spotless succeeds
 # - restore hidden worktree changes
 handleMergeCommit
 handleEmptyCommitAtStart
@@ -210,14 +224,22 @@ hideFullyUnstagedTrackedChanges
 echo "[git pre-commit hook] - Running spotless:apply"
 spotlessApply
 SPOTLESS_APPLY_RESULT=$?
-# Re-stage formatter edits after Spotless mutates files in the worktree.
-git add -u
-GIT_ADD_RESULT=$?
+GIT_ADD_RESULT=0
+if [ "$SPOTLESS_APPLY_RESULT" -eq 0 ]; then
+  # Re-stage formatter edits only after a successful Spotless run. If Spotless
+  # itself fails, leave the index alone and focus on restoring hidden changes.
+  git add -u
+  GIT_ADD_RESULT=$?
+fi
 restoreFullyUnstagedTrackedChanges
 RESTORE_RESULT=$?
 if [ "$RESTORE_RESULT" -ne 0 ]; then
   echo "[git pre-commit hook] - Failed to restore fully unstaged tracked changes. Aborting commit!"
   exit "$RESTORE_RESULT"
+fi
+if [ "$SPOTLESS_APPLY_RESULT" -ne 0 ]; then
+  echo "[git pre-commit hook] - spotless:apply failed. Aborting commit without staging formatter edits."
+  exit "$SPOTLESS_APPLY_RESULT"
 fi
 if [ "$GIT_ADD_RESULT" -ne 0 ]; then
   echo "[git pre-commit hook] - Failed to stage formatted files. Aborting commit!"
