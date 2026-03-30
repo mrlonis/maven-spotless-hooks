@@ -148,14 +148,7 @@ class TempGitRepo:
             source_text = source.read_text(encoding="utf-8")
             hook_body = source_text.split("\n", 1)[1] if source_text.startswith("#!/bin/sh\n") else source_text
             destination.write_text(
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    PATH="{hook_path_prefix}:$PATH"
-                    export PATH
-                    {hook_body}
-                    """
-                ),
+                f'#!/bin/sh\nPATH="{hook_path_prefix}:$PATH"\nexport PATH\n{hook_body}',
                 encoding="utf-8",
                 newline="\n",
             )
