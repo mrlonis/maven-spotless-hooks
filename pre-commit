@@ -117,7 +117,7 @@ stagePartiallyStagedFiles() {
     if ! xargs -0 sh -c '
         for file do
           if ! git diff --quiet -- "$file"; then
-            printf "%s\0" "$file"
+            printf "%s\000" "$file"
           fi
         done
       ' sh < "$TRACKED_STAGED_CHANGES_FILE" > "$PARTIALLY_STAGED_FILES_FILE"; then
