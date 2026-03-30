@@ -53,6 +53,9 @@ class TempGitRepo:
         self.env["GIT_TERMINAL_PROMPT"] = "0"
         self.env["HOOK_TEST_PYTHON"] = "python" if os.name == "nt" else "python3"
         self.env["REAL_GIT"] = self.real_git
+        # The sh wrapper runs under Git Bash on Windows, so give it a shell-safe
+        # path to the real git binary instead of a raw C:\... path.
+        self.env["REAL_GIT_SH"] = self._shell_path(Path(self.real_git))
 
     def _create_fake_git_wrappers(self) -> None:
         # The hook under test shells out to git many times. By shadowing git on
@@ -105,7 +108,7 @@ class TempGitRepo:
                 fi
                 ;;
             esac
-            exec "$REAL_GIT" "$@"
+            exec "$REAL_GIT_SH" "$@"
             """
         )
         cmd_wrapper = textwrap.dedent(
@@ -262,11 +265,16 @@ class TempGitRepo:
         worktree_contents: str,
     ) -> None:
         self.write_file(relative_path, worktree_contents)
+        if not base_contents:
+            # New-file patches are more reliable when the index already has an
+            # intent-to-add entry. This avoids depending on git apply inferring a
+            # file creation from a generic unified diff shape.
+            self.git("add", "-N", "--", relative_path)
         patch = "".join(
             difflib.unified_diff(
                 base_contents.splitlines(keepends=True),
                 staged_contents.splitlines(keepends=True),
-                fromfile=f"a/{relative_path}",
+                fromfile="/dev/null" if not base_contents else f"a/{relative_path}",
                 tofile=f"b/{relative_path}",
             )
         )
