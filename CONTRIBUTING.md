@@ -4,7 +4,7 @@ Thanks for contributing to `maven-spotless-hooks`.
 
 This repository provides Git hooks for downstream Maven projects that want `Spotless` to run automatically around `git commit`. The core product here is the behavior of the hooks themselves, especially around staged files, partially staged files, fully unstaged tracked changes, and safe recovery when something goes wrong.
 
-## Before You Start
+## Ways to Contribute
 
 Small fixes and documentation improvements are welcome directly.
 
@@ -17,6 +17,43 @@ For larger behavioral changes, please open an issue or start a discussion first,
 - cross-platform behavior on Windows, macOS, or Linux
 
 This project is small, but the hook behavior is subtle. A “simple” change can easily alter what gets committed.
+
+## Reporting Bugs
+
+If you hit a bug, please include as much concrete detail as you can.
+
+The most useful bug reports usually include:
+
+- the platform where the issue happened: Linux, macOS, or Windows
+- how Git was being run: terminal, Git Bash, GitHub Desktop, IDE integration, etc.
+- the exact files involved and whether they were staged, partially staged, or unstaged
+- the hook output or error message
+- whether the problem happened in `pre-commit`, `post-commit`, or both
+- whether the issue is reproducible in a small sample repo
+
+If the bug involves formatting/restoration behavior, please be especially clear about:
+
+- what was staged before `git commit`
+- what was unstaged before `git commit`
+- what you expected to be committed
+- what actually ended up in `HEAD` and in the worktree
+
+## Suggesting Changes
+
+Suggestions are welcome, especially if they improve:
+
+- safety and recovery behavior
+- partial-staging behavior
+- downstream setup or documentation
+- test coverage
+- cross-platform reliability
+
+For larger suggestions, it helps to describe:
+
+- the user workflow you are trying to improve
+- the current behavior
+- the desired behavior
+- any tradeoffs or compatibility risks you see
 
 ## Repository Overview
 
@@ -39,7 +76,7 @@ Important files:
 - `README.md` and `docs/`
   User-facing documentation.
 
-## Design Principles
+## Project Principles
 
 Please keep these principles in mind when making changes.
 
@@ -103,7 +140,7 @@ Avoid:
 - hidden global Git state changes
 - “works on my machine” shortcuts
 
-## Development Notes
+## Development Guidelines
 
 ### Shell Compatibility
 
@@ -166,7 +203,7 @@ It does not mock the hook internals. Instead, it:
 
 When adding behavior to the hooks, prefer extending the harness rather than adding narrow unit tests that do not exercise real Git behavior.
 
-## Documentation Expectations
+## Documentation
 
 If behavior changes, please update the relevant docs too.
 
@@ -189,6 +226,18 @@ A good PR for this repo usually includes:
 
 Please call out any platform-specific considerations in the PR description, especially if you had to do something special for Windows.
 
+## Pull Request Checklist
+
+Before opening or marking a PR ready for review, please check:
+
+- the change is scoped to a clear problem or improvement
+- hook behavior changes are covered by tests
+- `sh -n pre-commit` passes locally if `pre-commit` was touched
+- `python3 -m unittest -v tests.hook_harness` passes locally if hook or harness behavior changed
+- relevant docs were updated if user-visible behavior changed
+- any Windows-specific considerations are called out in the PR description
+- recovery behavior was considered if the change touches hidden/unstaged file handling
+
 ## What Not to Do
 
 Please avoid changes that:
@@ -199,7 +248,7 @@ Please avoid changes that:
 - rely on non-portable shell features
 - skip Windows considerations when touching hook execution or path handling
 
-## Questions and Suggestions
+## Questions
 
 If you are unsure whether a change fits the project’s intended behavior, open an issue or draft PR and explain the scenario you are trying to improve. That is usually the fastest way to align on the right direction.
 
