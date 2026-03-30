@@ -1,4 +1,6 @@
 #!/bin/sh
+HOOK_STASH_CREATED=0
+
 logGitInfo() {
   if [ "$MAVEN_SPOTLESS_HOOKS_DEBUG" = 1 ]; then
     echo "[git pre-commit hook - $conflictedFile] - git status --porcelain"
@@ -27,18 +29,37 @@ handleEmptyCommitAtStart() {
 }
 
 stageUnStagedChangesInStagedFiles() {
-  STAGED_FILES=$(git diff --name-only --cached --diff-filter=ad)
-  if [ -n "$STAGED_FILES" ]; then
-    echo "$STAGED_FILES" | xargs git add
+  if ! git diff --cached --quiet --diff-filter=ad; then
+    # Preserve the current behavior of staging the full working-tree version of
+    # already-staged files, but pass the file list in a NUL-safe format.
+    git diff --name-only --cached --diff-filter=ad -z |
+      git add --pathspec-from-file=- --pathspec-file-nul
+  fi
+}
+
+createHookStash() {
+  STASH_BEFORE="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
+  # Only pop a stash later if this hook created a new stash entry.
+  git stash -q --keep-index
+  STASH_AFTER="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
+
+  if [ -n "$STASH_AFTER" ] && [ "$STASH_AFTER" != "$STASH_BEFORE" ]; then
+    HOOK_STASH_CREATED=1
+  fi
+}
+
+restoreHookStash() {
+  if [ "$HOOK_STASH_CREATED" -eq 1 ]; then
+    git stash pop -q stash@{0}
   fi
 }
 
 spotlessApply() {
   # We pass in ratchetFrom here to ensure that we only format the files that have changed since the last commit
   if command -v mvn >/dev/null 2>&1; then # Check if mvn command exists to support GitHub Desktop on Windows
-    mvn spotless:apply -DratchetFrom=HEAD -q # Requires Maven to be installed
+    mvn spotless:apply -DratchetFrom=HEAD -q -T 1C # Requires Maven to be installed
   else
-    ./mvnw spotless:apply -DratchetFrom=HEAD -q # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
+    ./mvnw spotless:apply -DratchetFrom=HEAD -q -T 1C # Otherwise call maven wrapper for Mac-OS / Unix / Git for Windows
   fi
 }
 
@@ -59,7 +80,7 @@ handleMergeConflicts() {
         echo "[git pre-commit hook - $conflictedFile] - Calling git restore --staged"
       fi
       # Unstage the file to prevent it from being committed, let Spotless format it first
-      git restore --staged "$$conflictedFile"
+      git restore --staged "$conflictedFile"
       logGitInfo
     done
 
@@ -98,14 +119,13 @@ handleEmptyCommitAtEnd() {
 handleMergeCommit
 handleEmptyCommitAtStart
 stageUnStagedChangesInStagedFiles
-git stash clear
-git stash -q --keep-index
+createHookStash
 echo "[git pre-commit hook] - Running spotless:apply"
 spotlessApply
 SPOTLESS_APPLY_RESULT=$?
 # Re-stage updated files from spotless:apply
 git add -u
-git stash pop -q
+restoreHookStash
 handleMergeConflicts
 handleEmptyCommitAtEnd
 exit $SPOTLESS_APPLY_RESULT
