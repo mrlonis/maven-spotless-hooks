@@ -30,7 +30,7 @@ la carte, but also includes powerful "batteries-included" if you opt-in.
 
 ## ❓ Why Spotless?
 
-There really isn’t a strong alternative.
+There aren’t many strong alternatives in the Java ecosystem.
 
 Spotless is one of the very few formatting tools that works seamlessly with both Maven and Gradle, and can be integrated
 into Java projects without requiring new tooling ecosystems or language server configuration. It handles multi-format
@@ -45,22 +45,23 @@ gap with the added benefit of being language-agnostic across file types.
 
 To find out more information about the `spotless-maven-plugin`, please refer to
 the [Spotless Maven Plugin Documentation](https://github.com/diffplug/spotless/blob/main/plugin-maven/README.md). This
-will give you more information about the configuration options available to you. The configuration options laid out
-above are a full-fat recommended configuration. All the sections might not apply to you, like the `sql` section. It is
-also strongly advised, if you are adding `spotless` to an existing project, to remove the `java` portion from the
-`spotless` configuration for a phase 1 migration. This way, you can start enforcing the `pre-commit` process and get
-formatting on some non-critical, non-java files. Once you are happy with the configuration, you can then add the `java`
-portion to the `spotless` configuration. This will allow you to get the formatting on the Java files without having to
-set up the overall configuration and process in one go.
+will give you more information about the configuration options available to you. The configuration options laid out 
+above represent a comprehensive recommended setup. All the sections might not apply to you, like the `sql` section. It 
+is also strongly advised, if you are adding `spotless` to an existing project, to remove the `java` portion from the
+`spotless` configuration for a phase 1 migration to avoid large formatting diffs during initial adoption. 
+This way, you can start enforcing the `pre-commit` process and get formatting on some non-critical, non-Java files. 
+Once you are happy with the configuration, you can then add the `java` portion to the `spotless` configuration. 
+This will allow you to get the formatting on the Java files without having to set up the overall configuration and 
+process in one go.
 
 ## 📋 Pre-requisites
 
-- Your project must be on `Java 11`
+- Your project must be on `Java 17` or higher to use `Spotless 3.x.x`
 - Your project must have the `Maven Wrapper` configured
 
 ## 🧰 Maven Wrapper Setup
 
-To add Maven wrapper to your project, run the following command: `mvn wrapper:wrapper -Dmaven=3.8.8`
+To add Maven wrapper to your project, run the following command: `mvn wrapper:wrapper -Dmaven=3.9.14`
 
 You can do this in almost any IDE, since they often bundle Maven into the IDE itself. It is fine to continue using the
 bundled Maven when in the IDE, but we need the Maven Wrapper to perform `pre-commit` commands.
@@ -71,7 +72,7 @@ bundled Maven when in the IDE, but we need the Maven Wrapper to perform `pre-com
 > **force** all developers to install yet another tool on their local machine. This is not ideal, and we want to avoid 
 > that if possible.
 
-Despite the above warning, your IDEs built-in git process will also run these hooks. At the end of the day, these hooks
+Despite the above warning, your IDEs built-in Git process will also run these hooks. At the end of the day, these hooks
 simply go into your `.git/hooks/` directory and are run by git. So, if you are using IntelliJ, Eclipse, or VS Code, the
 hooks will run as expected. The wrapper is purely for CLI needs.
 
@@ -98,7 +99,7 @@ even if you yourself don't experience any issues.
 ## ⚙️ Basic Plugin Setup
 
 This section details how to configure `spotless` in your `pom.xml` file. We start off with the overall skeleton of the
-`plugin` within the `pom.xml` file, and then brerak out the different configurations for the different file types into
+`plugin` within the `pom.xml` file, and then break out the different configurations for the different file types into
 their own section. It is recommended to add all the formatting configurations you want **except** Java formatting in the
 first phase. This way, you can get the `pre-commit` hooks set up and working, and then add the Java formatting in a
 second phase. This will allow you to get the formatting on the non-critical files first, and then add the Java
