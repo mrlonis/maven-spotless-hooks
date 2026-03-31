@@ -4,13 +4,15 @@ This guide covers optional but powerful Spotless hook extensions for teams opera
 
 ## 📑 Table of Contents
 
-- [🛠️ Advanced Configuration](#️-advanced-configuration)
-  - [📑 Table of Contents](#-table-of-contents)
-  - [🔄 Automatically Update Submodule With Maven](#-automatically-update-submodule-with-maven)
-    - [🖥️ Executed Command](#️-executed-command)
-    - [🚫 Excluding submodule updates during CI](#-excluding-submodule-updates-during-ci)
-      - [🤖 GitHub Actions](#-github-actions)
-  - [📝 Update YOUR Project README.md](#-update-your-project-readmemd)
+<!-- TOC -->
+* [🛠️ Advanced Configuration](#-advanced-configuration)
+  * [📑 Table of Contents](#-table-of-contents)
+  * [🔄 Automatically Update Submodule With Maven](#-automatically-update-submodule-with-maven)
+    * [🖥️ Executed Command](#-executed-command)
+    * [🚫 Excluding submodule updates during CI](#-excluding-submodule-updates-during-ci)
+      * [🤖 GitHub Actions](#-github-actions)
+  * [📝 Update YOUR Project README.md](#-update-your-project-readmemd)
+<!-- TOC -->
 
 ## 🔄 Automatically Update Submodule With Maven
 

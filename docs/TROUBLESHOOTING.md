@@ -2,18 +2,20 @@
 
 ## 📑 Table of Contents
 
-- [🧯 Troubleshooting](#-troubleshooting)
-  - [📑 Table of Contents](#-table-of-contents)
-  - [🪟 How to fix "git-sh-setup: file not found" in windows](#-how-to-fix-git-sh-setup-file-not-found-in-windows)
-    - [🧪 Git Environment Variable Repair](#-git-environment-variable-repair)
-  - [🚫 Disabling Spotless](#-disabling-spotless)
-    - [💡 Use Cases for Disabling Spotless](#-use-cases-for-disabling-spotless)
-    - [🎍 Bamboo Example](#-bamboo-example)
-    - [🤖 GitHub Actions Example](#-github-actions-example)
-  - [🪟 Windows: Dynamic JAVA\_HOME Env Variable Changing](#-windows-dynamic-java_home-env-variable-changing)
-    - [🛠️ PowerShell Profile](#️-powershell-profile)
-      - [📜 Profile Content](#-profile-content)
-  - [🐞 Debugging These Scripts](#-debugging-these-scripts)
+<!-- TOC -->
+* [🧯 Troubleshooting](#-troubleshooting)
+  * [📑 Table of Contents](#-table-of-contents)
+  * [🪟 How to fix "git-sh-setup: file not found" in windows](#-how-to-fix-git-sh-setup-file-not-found-in-windows)
+    * [🧪 Git Environment Variable Repair](#-git-environment-variable-repair)
+  * [🚫 Disabling Spotless](#-disabling-spotless)
+    * [💡 Use Cases for Disabling Spotless](#-use-cases-for-disabling-spotless)
+    * [🎍 Bamboo Example](#-bamboo-example)
+    * [🤖 GitHub Actions Example](#-github-actions-example)
+  * [🪟 Windows: Dynamic JAVA_HOME Env Variable Changing](#-windows-dynamic-java_home-env-variable-changing)
+    * [🛠️ PowerShell Profile](#-powershell-profile)
+      * [📜 Profile Content](#-profile-content)
+  * [🐞 Debugging These Scripts](#-debugging-these-scripts)
+<!-- TOC -->
 
 ## 🪟 How to fix "git-sh-setup: file not found" in windows
 
