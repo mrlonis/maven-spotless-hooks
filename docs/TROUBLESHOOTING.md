@@ -2,24 +2,30 @@
 
 ## 📑 Table of Contents
 
-- [🧯 Troubleshooting](#-troubleshooting)
-  - [📑 Table of Contents](#-table-of-contents)
-  - [🪟 How to fix "git-sh-setup: file not found" in windows](#-how-to-fix-git-sh-setup-file-not-found-in-windows)
-    - [🧪 Git Environment Variable Repair](#-git-environment-variable-repair)
-  - [🚫 Disabling Spotless](#-disabling-spotless)
-    - [💡 Use Cases for Disabling Spotless](#-use-cases-for-disabling-spotless)
-    - [🎍 Bamboo Example](#-bamboo-example)
-    - [🤖 GitHub Actions Example](#-github-actions-example)
-  - [🪟 Windows: Dynamic JAVA\_HOME Env Variable Changing](#-windows-dynamic-java_home-env-variable-changing)
-    - [🛠️ PowerShell Profile](#️-powershell-profile)
-      - [📜 Profile Content](#-profile-content)
-  - [🐞 Debugging These Scripts](#-debugging-these-scripts)
+<!-- TOC -->
+* [🧯 Troubleshooting](#-troubleshooting)
+  * [📑 Table of Contents](#-table-of-contents)
+  * [🪟 How to fix "git-sh-setup: file not found" in Windows](#-how-to-fix-git-sh-setup-file-not-found-in-windows)
+    * [🧪 Git Environment Variable Repair](#-git-environment-variable-repair)
+  * [🚫 Disabling Spotless](#-disabling-spotless)
+    * [💡 Use Cases for Disabling Spotless](#-use-cases-for-disabling-spotless)
+    * [🎍 Bamboo Example](#-bamboo-example)
+    * [🤖 GitHub Actions Example](#-github-actions-example)
+  * [🪟 Windows: Dynamic JAVA_HOME Env Variable Changing](#-windows-dynamic-java_home-env-variable-changing)
+    * [🛠️ PowerShell Profile](#-powershell-profile)
+      * [📜 Profile Content](#-profile-content)
+  * [🐞 Debugging These Scripts](#-debugging-these-scripts)
+<!-- TOC -->
 
-## 🪟 How to fix "git-sh-setup: file not found" in windows
+## 🪟 How to fix "git-sh-setup: file not found" in Windows
 
-If you get any errors related to `git-sh-setup` or `git-sh-setup: file not found`, or some other error when performing the `git submodule update --init --remote --force` command, it is likely due to a problem with your `git` installation or your `PATH` environment variable.
+If you get any errors related to `git-sh-setup` or `git-sh-setup: file not found`, or some other error when performing 
+the `git submodule update --init --remote --force` command, it is likely due to a problem with your `git` installation 
+or your `PATH` environment variable.
 
-For starters, make sure you have the latest version of `git` installed. If you are using `choco`, you can run `choco upgrade git -y` to update `git` and if you don't use `choco` to manage `git`, you can download the latest version of `git` from the [Git for Windows](https://gitforwindows.org/) website.
+Make sure you are on a recent version of `git`. If you are using `choco`, you can run 
+`choco upgrade git -y` to update `git` and if you don't use `choco` to manage `git`, you can download the latest 
+version of `git` from the [Git for Windows](https://gitforwindows.org/) website.
 
 ### 🧪 Git Environment Variable Repair
 
@@ -36,7 +42,8 @@ For starters, make sure you have the latest version of `git` installed. If you a
 
 ## 🚫 Disabling Spotless
 
-If you ever need or want to disable `spotless`, we can do so by specifying a Maven profile. This can be done by adding the following profile configuration to the `pom.xml`:
+If you ever need or want to disable `spotless`, we can do so by specifying a Maven profile. This can be done by adding 
+the following profile configuration to the `pom.xml`:
 
 <!-- markdownlint-disable-next-line MD033 -->
 <details><summary>View <code>pom.xml</code> example profile</summary>
@@ -63,15 +70,18 @@ If you ever need or want to disable `spotless`, we can do so by specifying a Mav
 
 </details>
 
-This will set up a profile called `github` that will disable the `spotless` plugin. You can then run the following command to disable `spotless`: `mvn clean verify -P github`
+This sets up a profile called `github` that prevents the `spotless` plugin from running. You can then run the following 
+command to disable `spotless`: `mvn clean verify -P github`
 
 ### 💡 Use Cases for Disabling Spotless
 
-This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted projects that publish JARs instead of full Spring Boot applications that get deployed out to the cloud.
+This is often needed if the CI/CD pipeline is a 2-phase or 2-job process. This often has impacted projects that publish 
+JARs instead of full Spring Boot applications that get deployed out to the cloud.
 
 ### 🎍 Bamboo Example
 
-Your `Bamboo Specs` or `Bamboo UI` should be configured to run the following command: `mvn clean verify -P github`. The key here is the `-P github` flag. This will run the `github` profile and disable the `spotless` plugin.
+Your `Bamboo Specs` or `Bamboo UI` should be configured to run the following command: `mvn clean verify -P github`. The 
+key here is the `-P github` flag. This will run the `github` profile and disable the `spotless` plugin.
 
 ### 🤖 GitHub Actions Example
 
@@ -107,13 +117,17 @@ jobs:
 
 ### 🛠️ PowerShell Profile
 
-Run the following command in PowerShell to determine your `$profile` path: `echo $profile`. Then, open the file in your favorite text editor. `notepad.exe $profile` or `code $profile` if you have VS Code installed.
+Run the following command in PowerShell to determine your `$profile` path: `echo $profile`. Then, open the file in your 
+favorite text editor. `notepad.exe $profile` or `code $profile` if you have VS Code installed.
 
 #### 📜 Profile Content
 
-Below is the content of the `PowerShell profile`. This `profile` will give you dynamic functions, aptly named `java8`, `java11`, `java17`, and `java21` to set the `JAVA_HOME` environment variable to the correct version of `Java`. You can then run these functions in PowerShell to switch between `Java` versions at will.
+Below is the content of the `PowerShell profile`. This `profile` will give you dynamic functions, aptly named `java8`, 
+`java11`, `java17`, and `java21` to set the `JAVA_HOME` environment variable to the correct version of `Java`. You can 
+then run these functions in PowerShell to switch between `Java` versions at will.
 
-> **Note**: This **ONLY** works in an `Administrator PowerShell session`. This is a `Windows security limitation`. `Standard user shells cannot persist environment variables machine-wide`.
+> **Note**: Setting `JAVA_HOME` for the current session works without admin privileges.
+> Persisting it machine-wide requires an Administrator PowerShell session.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <details><summary>View example <code>PowerShell</code> profile</summary>
@@ -164,6 +178,7 @@ function java21 {
 
 ## 🐞 Debugging These Scripts
 
-To debug these scripts, simply set the `MAVEN_SPOTLESS_HOOKS_DEBUG` environment variable to `1`.
+To debug these scripts, simply set the `MAVEN_SPOTLESS_HOOKS_DEBUG` environment variable to `1`. This enables verbose 
+logging for the hook scripts.
 
 ← Back to [README.md](../README.md)
